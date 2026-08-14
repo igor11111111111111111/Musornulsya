@@ -30,10 +30,18 @@ namespace Musornulsya.Network
 
         // ---- Реестр PlayerState, поддерживается локально на каждом клиенте ----
         private static readonly List<PlayerState> _players = new List<PlayerState>();
+
+        /// <summary>Личности, для которых спавн уже запущен, но объект ещё не появился.</summary>
+        private readonly HashSet<string> _pendingSpawns = new HashSet<string>();
         public static IReadOnlyList<PlayerState> Players => _players;
 
         public static void RegisterPlayer(PlayerState p)
         {
+            // Объект доехал — отметка о незавершённом спавне больше не нужна,
+            // иначе вернувшийся игрок не смог бы подать заявку повторно.
+            if (p != null && Instance != null)
+                Instance._pendingSpawns.Remove(p.PersistentId.Value);
+
             // Список статический и переживает смену сцены, поэтому вычищаем
             // уничтоженные объекты от прошлой сессии — иначе в таблице
             // остались бы призраки после выхода и повторного входа.
@@ -184,6 +192,7 @@ namespace Musornulsya.Network
             _botsToSpawn = 0;
             _botsSpawned = 0;
             _botPlan.Clear();
+            _pendingSpawns.Clear();
             _joinConfirmed = false;
 
             Data.ArticleDatabase.Instance?.ResetUsed();
@@ -210,12 +219,18 @@ namespace Musornulsya.Network
             }
             else
             {
+                // Отсекаем повторные заявки: клиент шлёт их раз в полсекунды,
+                // а спавн может быть отложенным — без этой отметки на одного
+                // игрока успевало создаться несколько PlayerState.
+                if (!_pendingSpawns.Add(persistentId.Value)) return;
+
                 var joinOrder = NextJoinOrder;
+                NextJoinOrder = joinOrder + 1;
 
                 // Поля заполняем в onBeforeSpawned — до того, как объект станет
                 // видимым остальным. Иначе клиенты успевали увидеть заготовку
                 // без имени, и она висела в таблице строкой «(не в сети)».
-                var obj = Runner.Spawn(
+                Runner.Spawn(
                     _playerStatePrefab,
                     Vector3.zero,
                     Quaternion.identity,
@@ -231,15 +246,6 @@ namespace Musornulsya.Network
                         s.JoinOrder = joinOrder;
                     });
 
-                if (obj == null)
-                {
-                    // Не ошибка: пока менеджер сцен занят, провайдер объектов
-                    // просит повторить попытку. Клиент продолжает слать заявку
-                    // раз в полсекунды, так что следующая попытка пройдёт.
-                    return;
-                }
-
-                NextJoinOrder = joinOrder + 1;
                 Debug.Log($"[GameRoom] Игрок принят: {playerName.Value} ({who})");
             }
 
@@ -371,7 +377,16 @@ namespace Musornulsya.Network
                 _ => "Бот мимо",
             };
 
-            var obj = Runner.Spawn(
+            // Счётчики двигаем ДО спавна и повторов не делаем.
+            // Runner.Spawn возвращает null, даже когда объект успешно поставлен
+            // в очередь отложенного создания (EnqueueIncompleteSynchronousSpawns).
+            // Прежний код считал это неудачей и спавнил бота заново —
+            // первый бот дублировался лишние разы.
+            NextJoinOrder = joinOrder + 1;
+            _botsSpawned++;
+            _botsToSpawn--;
+
+            Runner.Spawn(
                 _playerStatePrefab,
                 Vector3.zero,
                 Quaternion.identity,
@@ -387,12 +402,6 @@ namespace Musornulsya.Network
                     s.Score = 0;
                     s.JoinOrder = joinOrder;
                 });
-
-            if (obj == null) return;   // не готов — повторим на следующем кадре
-
-            NextJoinOrder = joinOrder + 1;
-            _botsSpawned++;
-            _botsToSpawn--;
 
             NotifyChanged();
         }
