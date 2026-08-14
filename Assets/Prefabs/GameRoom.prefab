@@ -48,7 +48,7 @@ MonoBehaviour:
   SortKey: 3872218748
   SendPriority: 1
   EnableInterpolation: 1
-  Flags: 262146
+  Flags: 2
   NestedObjects: []
   NetworkedBehaviours:
   - {fileID: 3637862820476035534}
@@ -66,7 +66,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Musornulsya.Network.GameRoom
   _playerStatePrefab:
-    RawGuidValue: 00000000000000000000000000000000
+    RawGuidValue: dd3dba00870ee4377bc4789c8111f119
   _HostPersistentId:
     _length: 0
     _data:

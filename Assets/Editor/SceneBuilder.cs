@@ -56,11 +56,25 @@ namespace Musornulsya.EditorTools
 
         // ---------- Префабы ----------
 
+        /// <summary>
+        /// Снимает DestroyWhenStateAuthorityLeaves.
+        /// По умолчанию Fusion удаляет объект, когда владелец вышел из комнаты, — это
+        /// обнулило бы очки отвалившегося игрока и распустило комнату при вылете ведущего.
+        /// Нам нужно обратное: состояние переживает разрыв и ждёт возвращения.
+        /// </summary>
+        private static void KeepAliveWhenOwnerLeaves(NetworkObject netObj)
+        {
+            netObj.Flags &= ~NetworkObjectFlags.DestroyWhenStateAuthorityLeaves;
+            EditorUtility.SetDirty(netObj);
+        }
+
         private static GameObject BuildPlayerStatePrefab()
         {
             var go = new GameObject("PlayerState");
-            go.AddComponent<NetworkObject>();
+            var netObj = go.AddComponent<NetworkObject>();
             go.AddComponent<PlayerState>();
+
+            KeepAliveWhenOwnerLeaves(netObj);
 
             var path = PrefabsDir + "/PlayerState.prefab";
             var prefab = PrefabUtility.SaveAsPrefabAsset(go, path);
@@ -71,8 +85,10 @@ namespace Musornulsya.EditorTools
         private static GameObject BuildGameRoomPrefab(GameObject playerStatePrefab)
         {
             var go = new GameObject("GameRoom");
-            go.AddComponent<NetworkObject>();
+            var netObj = go.AddComponent<NetworkObject>();
             var room = go.AddComponent<GameRoom>();
+
+            KeepAliveWhenOwnerLeaves(netObj);
 
             var so = new SerializedObject(room);
             var prop = so.FindProperty("_playerStatePrefab");
@@ -86,30 +102,35 @@ namespace Musornulsya.EditorTools
         }
 
         /// <summary>
-        /// NetworkPrefabRef сериализуется как обёртка над GUID префаба.
-        /// Поле внутри может называться по-разному между версиями Fusion,
-        /// поэтому берём первое строковое/hash-поле, какое найдём.
+        /// NetworkPrefabRef хранит GUID ассета в NetworkObjectGuid — это не строка,
+        /// а фиксированный буфер из двух long. Пишем так же, как собственный
+        /// инспектор Fusion (NetworkObjectGuidDrawer.SetValue).
         /// </summary>
-        private static void AssignNetworkPrefabRef(SerializedProperty prop, GameObject prefab)
+        private static unsafe void AssignNetworkPrefabRef(SerializedProperty prop, GameObject prefab)
         {
             if (prop == null || prefab == null) return;
 
-            var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(prefab));
-            var iterator = prop.Copy();
-            var end = prop.GetEndProperty();
+            var assetGuid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(prefab));
 
-            while (iterator.NextVisible(true) && !SerializedProperty.EqualContents(iterator, end))
+            if (!NetworkObjectGuid.TryParse(assetGuid, out var guid))
             {
-                if (iterator.propertyType == SerializedPropertyType.String)
-                {
-                    iterator.stringValue = guid;
-                    return;
-                }
+                Debug.LogWarning(
+                    $"[SceneBuilder] Не удалось разобрать GUID префаба {prefab.name}. " +
+                    "Назначь его в инспекторе вручную.");
+                return;
             }
 
-            Debug.LogWarning(
-                $"[SceneBuilder] Не удалось записать ссылку на префаб {prefab.name} автоматически. " +
-                "Назначь его в инспекторе вручную.");
+            var raw = prop.FindPropertyRelative(nameof(NetworkObjectGuid.RawGuidValue));
+            if (raw == null)
+            {
+                Debug.LogWarning(
+                    $"[SceneBuilder] Не найдено поле RawGuidValue для {prefab.name}. " +
+                    "Назначь префаб в инспекторе вручную.");
+                return;
+            }
+
+            raw.GetFixedBufferElementAtIndex(0).longValue = guid.RawGuidValue[0];
+            raw.GetFixedBufferElementAtIndex(1).longValue = guid.RawGuidValue[1];
         }
 
         private static PlayerRowUI BuildPlayerRowPrefab()
