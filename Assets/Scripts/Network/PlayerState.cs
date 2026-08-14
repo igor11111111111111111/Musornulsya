@@ -15,8 +15,20 @@ namespace Musornulsya.Network
 
         [Networked] public NetworkString<_32> PlayerName { get; set; }
 
-        /// <summary>Ответ в текущем раунде. Виден остальным только после Reveal.</summary>
-        [Networked] public NetworkString<_64> Answer { get; set; }
+        /// <summary>Номер статьи, введённый игроком. Виден остальным только после Reveal.</summary>
+        [Networked] public NetworkString<_16> AnswerArticle { get; set; }
+
+        /// <summary>Номер части. Отдельным полем, чтобы считать баллы автоматически.</summary>
+        [Networked] public NetworkString<_16> AnswerPart { get; set; }
+
+        /// <summary>
+        /// Очки по раундам: [0] — первый раунд и так далее.
+        /// Нужны для таблицы истории и итогового табло.
+        /// </summary>
+        [Networked, Capacity(32)] public NetworkArray<int> RoundScores => default;
+
+        /// <summary>Ведущий оспорил автоматический подсчёт — считает вручную.</summary>
+        [Networked] public bool ScoreOverridden { get; set; }
 
         [Networked] public int Score { get; set; }
 
@@ -53,10 +65,26 @@ namespace Musornulsya.Network
 
         /// <summary>Игрок отправляет ответ. Принимает ведущий.</summary>
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-        public void RPC_SubmitAnswer(NetworkString<_64> answer)
+        public void RPC_SubmitAnswer(NetworkString<_16> article, NetworkString<_16> part)
         {
-            Answer = answer;
+            AnswerArticle = article;
+            AnswerPart = part;
             HasAnswered = true;
+        }
+
+        /// <summary>Ответ целиком, для показа в таблице после Reveal.</summary>
+        public string AnswerLabel
+        {
+            get
+            {
+                if (!HasAnswered) return "";
+
+                var article = AnswerArticle.Value;
+                var part = AnswerPart.Value;
+
+                if (string.IsNullOrEmpty(article)) return "";
+                return string.IsNullOrEmpty(part) ? article : $"{article} ч.{part}";
+            }
         }
 
         // Баллы начисляются через GameRoom.RPC_Award — там же, где живёт

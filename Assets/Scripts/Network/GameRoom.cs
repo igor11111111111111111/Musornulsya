@@ -9,8 +9,9 @@ namespace Musornulsya.Network
     public enum RoundPhase
     {
         Lobby,      // ждём игроков, ведущий ещё не начал
-        Answering,  // ведущий объясняет голосом, игроки пишут
-        Reveal,     // ответы открыты, ведущий раздаёт баллы
+        Answering,  // идёт обратный отсчёт, игроки пишут
+        Reveal,     // ответы открыты, баллы посчитаны
+        Finished,   // раунды кончились, показываем победителя
     }
 
     /// <summary>
@@ -60,10 +61,26 @@ namespace Musornulsya.Network
         [Networked, OnChangedRender(nameof(NotifyChanged))]
         public int RoundNumber { get; set; }
 
-        /// <summary>Ключ текущей статьи ("158_2"). Заполняется только при Reveal —
-        /// до этого игроки не должны знать ответ, а сетевое поле видно всем.</summary>
+        /// <summary>Сколько всего раундов в партии. Задаёт ведущий перед стартом.</summary>
         [Networked, OnChangedRender(nameof(NotifyChanged))]
-        public NetworkString<_16> RevealedArticleKey { get; set; }
+        public int TotalRounds { get; set; }
+
+        /// <summary>Длительность раунда в секундах — выбирается ведущим.</summary>
+        [Networked] public int RoundDuration { get; set; }
+
+        /// <summary>
+        /// Таймер раунда. Fusion сам синхронизирует остаток у всех клиентов,
+        /// поэтому обратный отсчёт совпадает на каждом экране.
+        /// </summary>
+        [Networked] public TickTimer RoundTimer { get; set; }
+
+        /// <summary>Загаданная статья. В сеть уходит только при Reveal.</summary>
+        [Networked, OnChangedRender(nameof(NotifyChanged))]
+        public NetworkString<_16> RevealedArticleNumber { get; set; }
+
+        [Networked, OnChangedRender(nameof(NotifyChanged))]
+        public NetworkString<_16> RevealedArticlePart { get; set; }
+
 
         [Networked] public int NextJoinOrder { get; set; }
 
@@ -105,10 +122,14 @@ namespace Musornulsya.Network
         /// </summary>
         private void Update()
         {
-            if (_joinConfirmed || Runner == null || !Runner.IsRunning) return;
+            if (Runner == null || !Runner.IsRunning) return;
 
             // После деспавна RPC отправлять нельзя.
             if (Object == null || !Object.IsValid) return;
+
+            TickRoundTimer();
+
+            if (_joinConfirmed) return;
 
             // Заявка дошла, когда в комнате есть PlayerState, закреплённый именно
             // за нашим PlayerRef. Сверяться только по PersistentId недостаточно:
@@ -287,12 +308,23 @@ namespace Musornulsya.Network
             {
                 if (p == null || !p.IsBot) continue;
 
-                p.Answer = (index % 3) switch
+                switch (index % 3)
                 {
-                    0 => $"{articleNumber} ч.{articlePart}",   // полное совпадение
-                    1 => articleNumber,                        // только статья
-                    _ => "228 ч.1",                            // мимо
-                };
+                    case 0:   // угадал полностью
+                        p.AnswerArticle = articleNumber;
+                        p.AnswerPart = articlePart;
+                        break;
+
+                    case 1:   // статья верна, часть нет
+                        p.AnswerArticle = articleNumber;
+                        p.AnswerPart = articlePart == "1" ? "2" : "1";
+                        break;
+
+                    default:  // мимо
+                        p.AnswerArticle = "228";
+                        p.AnswerPart = "1";
+                        break;
+                }
 
                 p.HasAnswered = true;
                 index++;
@@ -301,53 +333,226 @@ namespace Musornulsya.Network
 
         // ---- Управление раундом (только ведущий) ----
 
-        /// <summary>
-        /// Загаданная статья передаётся только ради ботов — живым игрокам
-        /// её знать нельзя, поэтому в сеть она не уходит до Reveal.
-        /// </summary>
-        public void StartRound(string articleNumber = null, string articlePart = null)
+        /// <summary>Ведущий задаёт число раундов перед первой игрой.</summary>
+        public void ConfigureGame(int totalRounds)
         {
             if (!IsLocalHost) return;
-
-            RPC_StartRound();
-
-            if (!string.IsNullOrEmpty(articleNumber))
-                AnswerForBots(articleNumber, articlePart);
+            RPC_ConfigureGame(totalRounds);
         }
 
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-        private void RPC_StartRound()
+        private void RPC_ConfigureGame(int totalRounds)
+        {
+            TotalRounds = Mathf.Max(1, totalRounds);
+            NotifyChanged();
+        }
+
+        /// <summary>
+        /// Запускает раунд с обратным отсчётом. Статья нужна, чтобы посчитать
+        /// баллы при завершении и чтобы за ботов ответить сразу.
+        /// В сеть она уходит только на этапе Reveal.
+        /// </summary>
+        public void StartRound(string articleNumber, string articlePart, int durationSeconds)
+        {
+            if (!IsLocalHost) return;
+
+            RPC_StartRound(articleNumber, articlePart, durationSeconds);
+            AnswerForBots(articleNumber, articlePart);
+        }
+
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_StartRound(NetworkString<_16> articleNumber, NetworkString<_16> articlePart,
+            int durationSeconds)
         {
             RoundNumber++;
             Phase = RoundPhase.Answering;
-            RevealedArticleKey = "";
+            RoundDuration = durationSeconds;
+            RoundTimer = TickTimer.CreateFromSeconds(Runner, durationSeconds);
+
+            // Загаданное держим у себя: раскроем в Reveal.
+            _pendingArticleNumber = articleNumber.Value;
+            _pendingArticlePart = articlePart.Value;
+
+            RevealedArticleNumber = "";
+            RevealedArticlePart = "";
 
             foreach (var p in _players)
             {
                 if (p == null) continue;
-                p.Answer = "";
+                p.AnswerArticle = "";
+                p.AnswerPart = "";
                 p.HasAnswered = false;
+                p.ScoreOverridden = false;
             }
 
             NotifyChanged();
         }
 
-        /// <summary>Ведущий открывает ответы и раскрывает загаданную статью.</summary>
-        public void RevealAnswers(string articleKey)
+        private string _pendingArticleNumber;
+        private string _pendingArticlePart;
+
+        /// <summary>Секунд до конца раунда, для отображения.</summary>
+        public int SecondsLeft
         {
-            if (!IsLocalHost) return;
-            RPC_Reveal(articleKey);
+            get
+            {
+                if (Phase != RoundPhase.Answering) return 0;
+                var remaining = RoundTimer.RemainingTime(Runner);
+                return remaining.HasValue ? Mathf.CeilToInt(remaining.Value) : 0;
+            }
+        }
+
+        /// <summary>
+        /// Следит за концом раунда: время вышло или все ответили.
+        /// Работает только у ведущего — он владеет состоянием комнаты.
+        /// </summary>
+        private void TickRoundTimer()
+        {
+            if (!IsLocalHost || Phase != RoundPhase.Answering) return;
+
+            var timeUp = RoundTimer.Expired(Runner);
+            if (timeUp || EveryoneAnswered())
+                FinishRound();
+        }
+
+        private bool EveryoneAnswered()
+        {
+            var anyPlayer = false;
+
+            foreach (var p in _players)
+            {
+                if (p == null || !p.IsConnected) continue;
+                if (!p.IsBot && p.Owner == CurrentHostRef) continue;   // ведущий не отвечает
+
+                anyPlayer = true;
+                if (!p.HasAnswered) return false;
+            }
+
+            return anyPlayer;
+        }
+
+        /// <summary>
+        /// Завершает раунд: раскрывает статью и начисляет баллы автоматически —
+        /// по +1 за угаданную статью и за угаданную часть.
+        /// </summary>
+        private void FinishRound()
+        {
+            RPC_Reveal(_pendingArticleNumber ?? "", _pendingArticlePart ?? "");
         }
 
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-        private void RPC_Reveal(NetworkString<_16> articleKey)
+        private void RPC_Reveal(NetworkString<_16> articleNumber, NetworkString<_16> articlePart)
         {
-            RevealedArticleKey = articleKey;
+            RevealedArticleNumber = articleNumber;
+            RevealedArticlePart = articlePart;
             Phase = RoundPhase.Reveal;
+            RoundTimer = default;
+
+            var roundIndex = RoundNumber - 1;
+
+            foreach (var p in _players)
+            {
+                if (p == null) continue;
+
+                var points = ScoreAnswer(p, articleNumber.Value, articlePart.Value);
+
+                p.Score += points;
+                if (roundIndex >= 0 && roundIndex < p.RoundScores.Length)
+                    p.RoundScores.Set(roundIndex, points);
+            }
+
             NotifyChanged();
         }
 
-        /// <summary>Ведущий начисляет игроку баллы.</summary>
+        /// <summary>+1 за верную статью, ещё +1 за верную часть.</summary>
+        public static int ScoreAnswer(PlayerState player, string articleNumber, string articlePart)
+        {
+            if (player == null || !player.HasAnswered) return 0;
+
+            var points = 0;
+            if (player.AnswerArticle.Value == articleNumber) points++;
+            if (points > 0 && player.AnswerPart.Value == articlePart) points++;
+
+            return points;
+        }
+
+        /// <summary>Ведущий переходит к следующему раунду или завершает игру.</summary>
+        public void NextRoundOrFinish()
+        {
+            if (!IsLocalHost) return;
+
+            if (TotalRounds > 0 && RoundNumber >= TotalRounds)
+                RPC_FinishGame();
+        }
+
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_FinishGame()
+        {
+            Phase = RoundPhase.Finished;
+            NotifyChanged();
+        }
+
+        /// <summary>Новая игра с теми же игроками: очки и раунды с нуля.</summary>
+        public void RestartGame()
+        {
+            if (!IsLocalHost) return;
+            RPC_RestartGame();
+        }
+
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_RestartGame()
+        {
+            RoundNumber = 0;
+            Phase = RoundPhase.Lobby;
+            RevealedArticleNumber = "";
+            RevealedArticlePart = "";
+            RoundTimer = default;
+
+            foreach (var p in _players)
+            {
+                if (p == null) continue;
+
+                p.Score = 0;
+                p.AnswerArticle = "";
+                p.AnswerPart = "";
+                p.HasAnswered = false;
+                p.ScoreOverridden = false;
+
+                for (int i = 0; i < p.RoundScores.Length; i++)
+                    p.RoundScores.Set(i, 0);
+            }
+
+            NotifyChanged();
+        }
+
+        /// <summary>
+        /// Ведущий оспаривает автоматический подсчёт: очки за раунд обнуляются,
+        /// и появляются кнопки ручного начисления.
+        /// </summary>
+        public void DisputeScore(PlayerState player)
+        {
+            if (!IsLocalHost || player == null) return;
+            RPC_Dispute(player.Object.Id);
+        }
+
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_Dispute(NetworkId playerObjectId)
+        {
+            var obj = Runner.FindObject(playerObjectId);
+            if (obj == null || !obj.TryGetComponent<PlayerState>(out var state)) return;
+
+            var roundIndex = RoundNumber - 1;
+            if (roundIndex < 0 || roundIndex >= state.RoundScores.Length) return;
+
+            // Снимаем то, что начислил автомат, и ждём решения ведущего.
+            state.Score -= state.RoundScores[roundIndex];
+            state.RoundScores.Set(roundIndex, 0);
+            state.ScoreOverridden = true;
+
+            NotifyChanged();
+        }
+
+        /// <summary>Ручное начисление после оспаривания.</summary>
         public void AwardPoints(PlayerState player, int points)
         {
             if (!IsLocalHost || player == null) return;
@@ -358,11 +563,17 @@ namespace Musornulsya.Network
         private void RPC_Award(NetworkId playerObjectId, int points)
         {
             var obj = Runner.FindObject(playerObjectId);
-            if (obj != null && obj.TryGetComponent<PlayerState>(out var state))
-            {
-                state.Score += points;
-                NotifyChanged();
-            }
+            if (obj == null || !obj.TryGetComponent<PlayerState>(out var state)) return;
+
+            var roundIndex = RoundNumber - 1;
+            if (roundIndex < 0 || roundIndex >= state.RoundScores.Length) return;
+
+            // Заменяем прошлое значение за этот раунд, а не добавляем поверх:
+            // иначе повторное нажатие накручивало бы счёт.
+            state.Score += points - state.RoundScores[roundIndex];
+            state.RoundScores.Set(roundIndex, points);
+
+            NotifyChanged();
         }
 
         // ---- Локальные помощники ----

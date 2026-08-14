@@ -1,4 +1,3 @@
-using Musornulsya.Core;
 using Musornulsya.Data;
 using Musornulsya.Network;
 using UnityEngine;
@@ -6,7 +5,10 @@ using UnityEngine.UI;
 
 namespace Musornulsya.UI
 {
-    /// <summary>Одна строка в таблице ведущего: имя, ответ, кнопки баллов.</summary>
+    /// <summary>
+    /// Строка таблицы у ведущего: имя, ответ, начисленные очки.
+    /// Баллы считает автомат; ведущий может оспорить и выставить вручную.
+    /// </summary>
     public class PlayerRowUI : MonoBehaviour
     {
         [SerializeField] private Text _nameText;
@@ -14,7 +16,12 @@ namespace Musornulsya.UI
         [SerializeField] private Text _scoreText;
         [SerializeField] private Button _plus1;
         [SerializeField] private Button _plus2;
+        [SerializeField] private Button _disputeButton;
         [SerializeField] private GameObject _awardGroup;
+
+        private static readonly Color FullMatch = new Color(0.45f, 0.92f, 0.5f);
+        private static readonly Color PartMatch = new Color(0.98f, 0.83f, 0.35f);
+        private static readonly Color Dimmed = new Color(1f, 1f, 1f, 0.4f);
 
         private PlayerState _player;
 
@@ -22,6 +29,7 @@ namespace Musornulsya.UI
         {
             _plus1.onClick.AddListener(() => Award(1));
             _plus2.onClick.AddListener(() => Award(2));
+            _disputeButton.onClick.AddListener(Dispute);
         }
 
         private void Award(int points)
@@ -30,7 +38,13 @@ namespace Musornulsya.UI
                 GameRoom.Instance?.AwardPoints(_player, points);
         }
 
-        public void Bind(PlayerState player, bool showAnswer, bool canAward, ArticleRef target)
+        private void Dispute()
+        {
+            if (_player != null)
+                GameRoom.Instance?.DisputeScore(_player);
+        }
+
+        public void Bind(PlayerState player, bool showAnswer, bool isHost, ArticleRef target)
         {
             _player = player;
             if (player == null) return;
@@ -39,42 +53,53 @@ namespace Musornulsya.UI
             if (player.IsBot) name += " [бот]";
 
             _nameText.text = player.IsConnected ? name : $"{name} (не в сети)";
-            _nameText.color = player.IsConnected ? Color.white : new Color(1f, 1f, 1f, 0.4f);
+            _nameText.color = player.IsConnected ? Color.white : Dimmed;
 
             _scoreText.text = player.Score.ToString();
 
+            BindAnswer(player, showAnswer, target);
+
+            // Кнопки нужны только ведущему и только после раскрытия ответов.
+            // Пока подсчёт не оспорен, показываем одну кнопку «Оспорить»;
+            // после неё — ручное начисление.
+            var canJudge = isHost && showAnswer;
+            _awardGroup.SetActive(canJudge);
+
+            if (canJudge)
+            {
+                _disputeButton.gameObject.SetActive(!player.ScoreOverridden);
+                _plus1.gameObject.SetActive(player.ScoreOverridden);
+                _plus2.gameObject.SetActive(player.ScoreOverridden);
+            }
+        }
+
+        private void BindAnswer(PlayerState player, bool showAnswer, ArticleRef target)
+        {
             if (!showAnswer)
             {
-                // До Reveal ведущий видит только факт ответа, не текст —
-                // так же, как остальные игроки.
+                // До Reveal виден только факт ответа — иначе можно списать.
                 _answerText.text = player.HasAnswered ? "— ответил —" : "...";
                 _answerText.color = new Color(1f, 1f, 1f, 0.5f);
+                return;
             }
-            else if (!player.HasAnswered)
+
+            if (!player.HasAnswered)
             {
                 _answerText.text = "(не ответил)";
-                _answerText.color = new Color(1f, 1f, 1f, 0.4f);
+                _answerText.color = Dimmed;
+                return;
             }
-            else
+
+            _answerText.text = player.AnswerLabel;
+
+            // Цвет отражает то, что насчитал автомат.
+            var points = GameRoom.ScoreAnswer(player, target.number, target.part);
+            _answerText.color = points switch
             {
-                _answerText.text = player.Answer.Value;
-
-                // Подсветка — подсказка глазу, а не автопроверка.
-                switch (AnswerHint.Evaluate(player.Answer.Value, target))
-                {
-                    case AnswerHint.MatchLevel.Full:
-                        _answerText.color = new Color(0.45f, 0.92f, 0.5f);
-                        break;
-                    case AnswerHint.MatchLevel.Article:
-                        _answerText.color = new Color(0.98f, 0.83f, 0.35f);
-                        break;
-                    default:
-                        _answerText.color = Color.white;
-                        break;
-                }
-            }
-
-            _awardGroup.SetActive(canAward && showAnswer);
+                2 => FullMatch,
+                1 => PartMatch,
+                _ => Color.white,
+            };
         }
     }
 }

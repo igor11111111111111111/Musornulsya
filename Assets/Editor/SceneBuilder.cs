@@ -309,6 +309,8 @@ namespace Musornulsya.EditorTools
 
         // ---------- Сцена игры ----------
 
+        // ---------- Сцена игры ----------
+
         private static void BuildGameScene()
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -328,59 +330,109 @@ namespace Musornulsya.EditorTools
             headerRt.sizeDelta = new Vector2(0, 64);
             headerRt.anchoredPosition = Vector2.zero;
 
-            var headerBg = header.AddComponent<Image>();
-            headerBg.color = PanelColor;
+            header.AddComponent<Image>().color = PanelColor;
 
             var headerLayout = header.AddComponent<HorizontalLayoutGroup>();
-            headerLayout.padding = new RectOffset(20, 20, 0, 0);
-            headerLayout.spacing = 20;
+            headerLayout.padding = new RectOffset(20, 20, 8, 8);
+            headerLayout.spacing = 14;
             headerLayout.childAlignment = TextAnchor.MiddleLeft;
             headerLayout.childForceExpandWidth = false;
             headerLayout.childForceExpandHeight = true;
             headerLayout.childControlWidth = true;
             headerLayout.childControlHeight = true;
 
-            var roundText = CreateText(header.transform, "RoundText", "Лобби", 24, TextAnchor.MiddleLeft);
+            var roundText = CreateText(header.transform, "RoundText", "Лобби", 22, TextAnchor.MiddleLeft);
             roundText.fontStyle = FontStyle.Bold;
-            // Шире обычного: сюда попадает ещё и имя игрока.
-            SetLayout(roundText.gameObject, preferredWidth: 300, flexibleWidth: 0);
+            SetLayout(roundText.gameObject, preferredWidth: 250, flexibleWidth: 0);
 
-            var phaseText = CreateText(header.transform, "PhaseText", "", 18, TextAnchor.MiddleLeft);
+            var phaseText = CreateText(header.transform, "PhaseText", "", 17, TextAnchor.MiddleLeft);
             phaseText.color = new Color(0.65f, 0.68f, 0.75f);
-            SetLayout(phaseText.gameObject, preferredWidth: 300, flexibleWidth: 1);
+            SetLayout(phaseText.gameObject, preferredWidth: 260, flexibleWidth: 1);
 
-            var roomCodeText = CreateText(header.transform, "RoomCode", "Код: —", 20, TextAnchor.MiddleRight);
-            SetLayout(roomCodeText.gameObject, preferredWidth: 150, flexibleWidth: 0);
+            var historyButton = CreateButton(header.transform, "HistoryButton", "История",
+                new Color(0.28f, 0.31f, 0.38f));
+            SetLayout(historyButton.gameObject, preferredWidth: 120, preferredHeight: 40, flexibleWidth: 0);
+
+            var timerText = CreateText(header.transform, "TimerText", "", 26, TextAnchor.MiddleCenter);
+            timerText.fontStyle = FontStyle.Bold;
+            SetLayout(timerText.gameObject, preferredWidth: 110, flexibleWidth: 0);
+
+            var roomCodeText = CreateText(header.transform, "RoomCode", "Код: —", 19, TextAnchor.MiddleRight);
+            SetLayout(roomCodeText.gameObject, preferredWidth: 230, flexibleWidth: 0);
 
             var leaveButton = CreateButton(header.transform, "LeaveButton", "Выйти",
                 new Color(0.35f, 0.24f, 0.26f));
-            SetLayout(leaveButton.gameObject, preferredWidth: 100, flexibleWidth: 0);
+            SetLayout(leaveButton.gameObject, preferredWidth: 100, preferredHeight: 40, flexibleWidth: 0);
+
+            // ---- Настройка игры (только у ведущего, до первого раунда) ----
+            var setupPanel = CreateUIObject("SetupPanel", canvas.transform, out var setupRt);
+            setupRt.anchorMin = new Vector2(0, 1);
+            setupRt.anchorMax = new Vector2(1, 1);
+            setupRt.pivot = new Vector2(0.5f, 1);
+            setupRt.sizeDelta = new Vector2(-40, 92);
+            setupRt.anchoredPosition = new Vector2(0, -78);
+
+            setupPanel.AddComponent<Image>().color = PanelColor;
+
+            var setupLayout = setupPanel.AddComponent<HorizontalLayoutGroup>();
+            setupLayout.padding = new RectOffset(18, 18, 16, 16);
+            setupLayout.spacing = 12;
+            setupLayout.childAlignment = TextAnchor.MiddleLeft;
+            setupLayout.childForceExpandWidth = false;
+            setupLayout.childForceExpandHeight = true;
+            setupLayout.childControlWidth = true;
+            setupLayout.childControlHeight = true;
+
+            var setupLabel = CreateText(setupPanel.transform, "SetupLabel",
+                "Сколько раундов играем?", 20, TextAnchor.MiddleLeft);
+            SetLayout(setupLabel.gameObject, preferredWidth: 280, flexibleWidth: 0);
+
+            var totalRoundsInput = CreateInputField(setupPanel.transform, "TotalRoundsInput", "10");
+            SetLayout(totalRoundsInput.gameObject, preferredWidth: 120, flexibleWidth: 0);
+
+            var confirmSetupButton = CreateButton(setupPanel.transform, "ConfirmSetupButton",
+                "Начать игру", new Color(0.25f, 0.6f, 0.38f));
+            SetLayout(confirmSetupButton.gameObject, preferredWidth: 200, flexibleWidth: 0);
 
             // ---- Панель ведущего ----
             var hostPanel = CreateUIObject("HostPanel", canvas.transform, out var hostRt);
             hostRt.anchorMin = new Vector2(0, 1);
             hostRt.anchorMax = new Vector2(1, 1);
             hostRt.pivot = new Vector2(0.5f, 1);
-            hostRt.sizeDelta = new Vector2(-40, 210);
+            hostRt.sizeDelta = new Vector2(-40, 230);
             hostRt.anchoredPosition = new Vector2(0, -78);
 
-            var hostBg = hostPanel.AddComponent<Image>();
-            hostBg.color = PanelColor;
+            hostPanel.AddComponent<Image>().color = PanelColor;
 
             var hostLayout = hostPanel.AddComponent<VerticalLayoutGroup>();
             hostLayout.padding = new RectOffset(18, 18, 14, 14);
-            hostLayout.spacing = 10;
+            hostLayout.spacing = 8;
             hostLayout.childForceExpandWidth = true;
             hostLayout.childForceExpandHeight = false;
             hostLayout.childControlWidth = true;
             hostLayout.childControlHeight = true;
 
             var articleLabel = CreateText(hostPanel.transform, "ArticleLabel",
-                "Нажми «Случайная статья»", 28, TextAnchor.MiddleLeft);
+                "Выбери статью", 26, TextAnchor.MiddleLeft);
             articleLabel.fontStyle = FontStyle.Bold;
-            SetLayout(articleLabel.gameObject, preferredHeight: 40);
+            SetLayout(articleLabel.gameObject, preferredHeight: 34);
 
-            // Ряд кнопок ведущего
+            // Формулировка всегда на виду — отдельной кнопки больше нет.
+            var articleTextBg = CreateUIObject("ArticleTextBg", hostPanel.transform, out _);
+            articleTextBg.AddComponent<Image>().color = new Color(0.09f, 0.1f, 0.13f);
+            var atbLayout = articleTextBg.AddComponent<VerticalLayoutGroup>();
+            atbLayout.padding = new RectOffset(12, 12, 8, 8);
+            atbLayout.childForceExpandWidth = true;
+            atbLayout.childForceExpandHeight = false;
+            atbLayout.childControlWidth = true;
+            atbLayout.childControlHeight = true;
+            SetLayout(articleTextBg, preferredHeight: 96);
+
+            var articleText = CreateText(articleTextBg.transform, "ArticleText", "", 15,
+                TextAnchor.UpperLeft);
+            articleText.color = new Color(0.72f, 0.75f, 0.8f);
+            SetLayout(articleText.gameObject, preferredHeight: 80);
+
             var hostButtons = CreateUIObject("HostButtons", hostPanel.transform, out _);
             var hbLayout = hostButtons.AddComponent<HorizontalLayoutGroup>();
             hbLayout.spacing = 10;
@@ -388,44 +440,26 @@ namespace Musornulsya.EditorTools
             hbLayout.childForceExpandHeight = true;
             hbLayout.childControlWidth = true;
             hbLayout.childControlHeight = true;
-            SetLayout(hostButtons, preferredHeight: 50);
+            SetLayout(hostButtons, preferredHeight: 48);
 
             var randomButton = CreateButton(hostButtons.transform, "RandomButton",
                 "Случайная статья", AccentColor);
-            SetLayout(randomButton.gameObject, preferredWidth: 220, flexibleWidth: 0);
+            SetLayout(randomButton.gameObject, preferredWidth: 200, flexibleWidth: 0);
 
-            var toggleTextButton = CreateButton(hostButtons.transform, "ToggleTextButton",
-                "Показать формулировку", new Color(0.28f, 0.31f, 0.38f));
-            SetLayout(toggleTextButton.gameObject, preferredWidth: 240, flexibleWidth: 0);
+            var pickButton = CreateButton(hostButtons.transform, "PickButton",
+                "Выбрать статью", new Color(0.28f, 0.31f, 0.38f));
+            SetLayout(pickButton.gameObject, preferredWidth: 190, flexibleWidth: 0);
+
+            var durationDropdown = CreateDropdown(hostButtons.transform, "DurationDropdown");
+            SetLayout(durationDropdown.gameObject, preferredWidth: 150, flexibleWidth: 0);
 
             var startRoundButton = CreateButton(hostButtons.transform, "StartRoundButton",
                 "Начать раунд", new Color(0.25f, 0.6f, 0.38f));
             SetLayout(startRoundButton.gameObject, preferredWidth: 190, flexibleWidth: 0);
 
-            var revealButton = CreateButton(hostButtons.transform, "RevealButton",
-                "Открыть ответы", new Color(0.25f, 0.6f, 0.38f));
-            SetLayout(revealButton.gameObject, preferredWidth: 190, flexibleWidth: 0);
-
             var nextRoundButton = CreateButton(hostButtons.transform, "NextRoundButton",
                 "Следующий раунд", new Color(0.25f, 0.6f, 0.38f));
             SetLayout(nextRoundButton.gameObject, preferredWidth: 210, flexibleWidth: 0);
-
-            // Свёрнутый текст статьи
-            var articleTextGroup = CreateUIObject("ArticleTextGroup", hostPanel.transform, out _);
-            var atgBg = articleTextGroup.AddComponent<Image>();
-            atgBg.color = new Color(0.09f, 0.1f, 0.13f);
-            var atgLayout = articleTextGroup.AddComponent<VerticalLayoutGroup>();
-            atgLayout.padding = new RectOffset(12, 12, 10, 10);
-            atgLayout.childForceExpandWidth = true;
-            atgLayout.childForceExpandHeight = false;
-            atgLayout.childControlWidth = true;
-            atgLayout.childControlHeight = true;
-            SetLayout(articleTextGroup, preferredHeight: 90);
-
-            var articleText = CreateText(articleTextGroup.transform, "ArticleText", "", 16,
-                TextAnchor.UpperLeft);
-            articleText.color = new Color(0.72f, 0.75f, 0.8f);
-            SetLayout(articleText.gameObject, preferredHeight: 70);
 
             // ---- Панель игрока ----
             var playerPanel = CreateUIObject("PlayerPanel", canvas.transform, out var ppRt);
@@ -435,8 +469,7 @@ namespace Musornulsya.EditorTools
             ppRt.sizeDelta = new Vector2(-40, 170);
             ppRt.anchoredPosition = new Vector2(0, -78);
 
-            var ppBg = playerPanel.AddComponent<Image>();
-            ppBg.color = PanelColor;
+            playerPanel.AddComponent<Image>().color = PanelColor;
 
             var ppLayout = playerPanel.AddComponent<VerticalLayoutGroup>();
             ppLayout.padding = new RectOffset(18, 18, 14, 14);
@@ -449,40 +482,52 @@ namespace Musornulsya.EditorTools
             var answerRow = CreateUIObject("AnswerRow", playerPanel.transform, out _);
             var arLayout = answerRow.AddComponent<HorizontalLayoutGroup>();
             arLayout.spacing = 10;
+            arLayout.childAlignment = TextAnchor.MiddleLeft;
             arLayout.childForceExpandWidth = false;
             arLayout.childForceExpandHeight = true;
             arLayout.childControlWidth = true;
             arLayout.childControlHeight = true;
             SetLayout(answerRow, preferredHeight: 56);
 
-            var answerInput = CreateInputField(answerRow.transform, "AnswerInput",
-                "Например: 158 ч.2");
-            SetLayout(answerInput.gameObject, preferredWidth: 400, flexibleWidth: 1);
+            var articleCaption = CreateText(answerRow.transform, "ArticleCaption", "Статья",
+                18, TextAnchor.MiddleRight);
+            articleCaption.color = new Color(0.65f, 0.68f, 0.75f);
+            SetLayout(articleCaption.gameObject, preferredWidth: 80, flexibleWidth: 0);
+
+            var articleInput = CreateInputField(answerRow.transform, "ArticleInput", "158");
+            SetLayout(articleInput.gameObject, preferredWidth: 160, flexibleWidth: 0);
+
+            var partCaption = CreateText(answerRow.transform, "PartCaption", "Часть",
+                18, TextAnchor.MiddleRight);
+            partCaption.color = new Color(0.65f, 0.68f, 0.75f);
+            SetLayout(partCaption.gameObject, preferredWidth: 70, flexibleWidth: 0);
+
+            var partInput = CreateInputField(answerRow.transform, "PartInput", "2");
+            SetLayout(partInput.gameObject, preferredWidth: 120, flexibleWidth: 0);
 
             var submitButton = CreateButton(answerRow.transform, "SubmitButton",
                 "Отправить", AccentColor);
-            SetLayout(submitButton.gameObject, preferredWidth: 170, flexibleWidth: 0);
+            SetLayout(submitButton.gameObject, preferredWidth: 180, flexibleWidth: 1);
 
             var submitStatus = CreateText(playerPanel.transform, "SubmitStatus",
                 "Ждём, пока ведущий начнёт", 18, TextAnchor.MiddleLeft);
             submitStatus.color = new Color(0.65f, 0.68f, 0.75f);
-            SetLayout(submitStatus.gameObject, preferredHeight: 30);
+            SetLayout(submitStatus.gameObject, preferredHeight: 28);
 
             var revealedArticleText = CreateText(playerPanel.transform, "RevealedArticle",
-                "", 22, TextAnchor.MiddleLeft);
+                "", 21, TextAnchor.MiddleLeft);
             revealedArticleText.color = new Color(0.45f, 0.92f, 0.5f);
             revealedArticleText.fontStyle = FontStyle.Bold;
-            SetLayout(revealedArticleText.gameObject, preferredHeight: 34);
+            SetLayout(revealedArticleText.gameObject, preferredHeight: 32);
 
             // ---- Таблица игроков ----
             var scrollGo = CreateUIObject("PlayerList", canvas.transform, out var scrollRt);
             scrollRt.anchorMin = new Vector2(0, 0);
             scrollRt.anchorMax = new Vector2(1, 1);
             scrollRt.offsetMin = new Vector2(20, 20);
-            scrollRt.offsetMax = new Vector2(-20, -300);
+            scrollRt.offsetMax = new Vector2(-20, -320);
 
-            var scrollBg = scrollGo.AddComponent<Image>();
-            scrollBg.color = new Color(0.13f, 0.14f, 0.18f);
+            scrollGo.AddComponent<Image>().color = new Color(0.13f, 0.14f, 0.18f);
 
             var scrollRect = scrollGo.AddComponent<ScrollRect>();
             scrollRect.horizontal = false;
@@ -515,6 +560,10 @@ namespace Musornulsya.EditorTools
             var fitter = content.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
+            // ---- Оверлеи ----
+            var historyPanel = BuildHistoryPanel(canvas.transform);
+            var articlePicker = BuildArticlePicker(canvas.transform);
+
             // ---- Связываем GameUI ----
             var gameUiGo = new GameObject("GameUI");
             var gameUi = gameUiGo.AddComponent<GameUI>();
@@ -523,20 +572,26 @@ namespace Musornulsya.EditorTools
             so.FindProperty("_roomCodeText").objectReferenceValue = roomCodeText;
             so.FindProperty("_roundText").objectReferenceValue = roundText;
             so.FindProperty("_phaseText").objectReferenceValue = phaseText;
+            so.FindProperty("_timerText").objectReferenceValue = timerText;
+            so.FindProperty("_historyButton").objectReferenceValue = historyButton;
             so.FindProperty("_leaveButton").objectReferenceValue = leaveButton;
+
+            so.FindProperty("_setupPanel").objectReferenceValue = setupPanel;
+            so.FindProperty("_totalRoundsInput").objectReferenceValue = totalRoundsInput;
+            so.FindProperty("_confirmSetupButton").objectReferenceValue = confirmSetupButton;
 
             so.FindProperty("_hostPanel").objectReferenceValue = hostPanel;
             so.FindProperty("_articleLabel").objectReferenceValue = articleLabel;
-            so.FindProperty("_randomButton").objectReferenceValue = randomButton;
-            so.FindProperty("_toggleTextButton").objectReferenceValue = toggleTextButton;
-            so.FindProperty("_articleTextGroup").objectReferenceValue = articleTextGroup;
             so.FindProperty("_articleText").objectReferenceValue = articleText;
+            so.FindProperty("_randomButton").objectReferenceValue = randomButton;
+            so.FindProperty("_pickButton").objectReferenceValue = pickButton;
+            so.FindProperty("_durationDropdown").objectReferenceValue = durationDropdown;
             so.FindProperty("_startRoundButton").objectReferenceValue = startRoundButton;
-            so.FindProperty("_revealButton").objectReferenceValue = revealButton;
             so.FindProperty("_nextRoundButton").objectReferenceValue = nextRoundButton;
 
             so.FindProperty("_playerPanel").objectReferenceValue = playerPanel;
-            so.FindProperty("_answerInput").objectReferenceValue = answerInput;
+            so.FindProperty("_articleInput").objectReferenceValue = articleInput;
+            so.FindProperty("_partInput").objectReferenceValue = partInput;
             so.FindProperty("_submitButton").objectReferenceValue = submitButton;
             so.FindProperty("_submitStatus").objectReferenceValue = submitStatus;
             so.FindProperty("_revealedArticleText").objectReferenceValue = revealedArticleText;
@@ -545,9 +600,237 @@ namespace Musornulsya.EditorTools
             // из Resources в рантайме.
             so.FindProperty("_rowsParent").objectReferenceValue = contentRt;
 
+            so.FindProperty("_historyPanel").objectReferenceValue = historyPanel;
+            so.FindProperty("_articlePicker").objectReferenceValue = articlePicker;
+
             so.ApplyModifiedPropertiesWithoutUndo();
 
             EditorSceneManager.SaveScene(scene, GamePath);
+        }
+
+        // ---------- Оверлей истории ----------
+
+        private static HistoryPanelUI BuildHistoryPanel(Transform parent)
+        {
+            var root = CreateUIObject("HistoryPanel", parent, out var rootRt);
+            rootRt.anchorMin = Vector2.zero;
+            rootRt.anchorMax = Vector2.one;
+            rootRt.offsetMin = Vector2.zero;
+            rootRt.offsetMax = Vector2.zero;
+            root.AddComponent<Image>().color = new Color(0.06f, 0.07f, 0.09f, 0.97f);
+
+            var panel = CreateUIObject("Panel", root.transform, out var panelRt);
+            panelRt.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRt.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRt.pivot = new Vector2(0.5f, 0.5f);
+            panelRt.sizeDelta = new Vector2(1120, 620);
+
+            var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
+            panelLayout.padding = new RectOffset(24, 24, 20, 20);
+            panelLayout.spacing = 14;
+            panelLayout.childForceExpandWidth = true;
+            panelLayout.childForceExpandHeight = false;
+            panelLayout.childControlWidth = true;
+            panelLayout.childControlHeight = true;
+
+            var title = CreateText(panel.transform, "Title", "История раундов", 30, TextAnchor.MiddleCenter);
+            title.fontStyle = FontStyle.Bold;
+            SetLayout(title.gameObject, preferredHeight: 42);
+
+            var winner = CreateText(panel.transform, "Winner", "", 24, TextAnchor.MiddleCenter);
+            winner.color = new Color(0.45f, 0.92f, 0.5f);
+            winner.fontStyle = FontStyle.Bold;
+            SetLayout(winner.gameObject, preferredHeight: 36);
+
+            // Сетка результатов
+            var gridScroll = CreateUIObject("GridScroll", panel.transform, out _);
+            gridScroll.AddComponent<Image>().color = new Color(0.13f, 0.14f, 0.18f);
+            SetLayout(gridScroll, preferredHeight: 420);
+
+            var gridRect = gridScroll.AddComponent<ScrollRect>();
+            gridRect.movementType = ScrollRect.MovementType.Clamped;
+
+            var gridViewport = CreateUIObject("Viewport", gridScroll.transform, out var gridViewportRt);
+            gridViewportRt.anchorMin = Vector2.zero;
+            gridViewportRt.anchorMax = Vector2.one;
+            gridViewportRt.offsetMin = Vector2.zero;
+            gridViewportRt.offsetMax = Vector2.zero;
+            gridViewport.AddComponent<Image>().color = new Color(0, 0, 0, 0.01f);
+            gridViewport.AddComponent<Mask>().showMaskGraphic = false;
+            gridRect.viewport = gridViewportRt;
+
+            var grid = CreateUIObject("Grid", gridViewport.transform, out var gridRt);
+            gridRt.anchorMin = new Vector2(0, 1);
+            gridRt.anchorMax = new Vector2(1, 1);
+            gridRt.pivot = new Vector2(0.5f, 1);
+            gridRect.content = gridRt;
+
+            var gridLayout = grid.AddComponent<GridLayoutGroup>();
+            gridLayout.padding = new RectOffset(12, 12, 12, 12);
+            gridLayout.cellSize = new Vector2(74, 36);
+            gridLayout.spacing = new Vector2(4, 4);
+            gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            gridLayout.constraintCount = 6;
+
+            var gridFitter = grid.AddComponent<ContentSizeFitter>();
+            gridFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            // Кнопки
+            var buttons = CreateUIObject("Buttons", panel.transform, out _);
+            var btnLayout = buttons.AddComponent<HorizontalLayoutGroup>();
+            btnLayout.spacing = 12;
+            btnLayout.childAlignment = TextAnchor.MiddleCenter;
+            btnLayout.childForceExpandWidth = false;
+            btnLayout.childForceExpandHeight = true;
+            btnLayout.childControlWidth = true;
+            btnLayout.childControlHeight = true;
+            SetLayout(buttons, preferredHeight: 52);
+
+            var closeButton = CreateButton(buttons.transform, "CloseButton", "Закрыть",
+                new Color(0.28f, 0.31f, 0.38f));
+            SetLayout(closeButton.gameObject, preferredWidth: 200, flexibleWidth: 0);
+
+            var restartButton = CreateButton(buttons.transform, "RestartButton", "Начать заново",
+                new Color(0.25f, 0.6f, 0.38f));
+            SetLayout(restartButton.gameObject, preferredWidth: 240, flexibleWidth: 0);
+
+            var exitButton = CreateButton(buttons.transform, "ExitButton", "Выйти в лобби",
+                new Color(0.35f, 0.24f, 0.26f));
+            SetLayout(exitButton.gameObject, preferredWidth: 220, flexibleWidth: 0);
+
+            var ui = root.AddComponent<HistoryPanelUI>();
+            var so = new SerializedObject(ui);
+            so.FindProperty("_root").objectReferenceValue = root;
+            so.FindProperty("_titleText").objectReferenceValue = title;
+            so.FindProperty("_winnerText").objectReferenceValue = winner;
+            so.FindProperty("_gridParent").objectReferenceValue = gridRt;
+            so.FindProperty("_closeButton").objectReferenceValue = closeButton;
+            so.FindProperty("_restartButton").objectReferenceValue = restartButton;
+            so.FindProperty("_exitButton").objectReferenceValue = exitButton;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            return ui;
+        }
+
+        // ---------- Оверлей выбора статьи ----------
+
+        private static ArticlePickerUI BuildArticlePicker(Transform parent)
+        {
+            var root = CreateUIObject("ArticlePicker", parent, out var rootRt);
+            rootRt.anchorMin = Vector2.zero;
+            rootRt.anchorMax = Vector2.one;
+            rootRt.offsetMin = Vector2.zero;
+            rootRt.offsetMax = Vector2.zero;
+            root.AddComponent<Image>().color = new Color(0.06f, 0.07f, 0.09f, 0.97f);
+
+            var panel = CreateUIObject("Panel", root.transform, out var panelRt);
+            panelRt.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRt.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRt.pivot = new Vector2(0.5f, 0.5f);
+            panelRt.sizeDelta = new Vector2(1120, 640);
+
+            var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
+            panelLayout.padding = new RectOffset(24, 24, 20, 20);
+            panelLayout.spacing = 12;
+            panelLayout.childForceExpandWidth = true;
+            panelLayout.childForceExpandHeight = false;
+            panelLayout.childControlWidth = true;
+            panelLayout.childControlHeight = true;
+
+            var title = CreateText(panel.transform, "Title", "Выбор статьи", 28, TextAnchor.MiddleLeft);
+            title.fontStyle = FontStyle.Bold;
+            SetLayout(title.gameObject, preferredHeight: 38);
+
+            var searchInput = CreateInputField(panel.transform, "SearchInput",
+                "Поиск по номеру или названию");
+            SetLayout(searchInput.gameObject, preferredHeight: 48);
+
+            // Две колонки: статьи и части
+            var columns = CreateUIObject("Columns", panel.transform, out _);
+            var colLayout = columns.AddComponent<HorizontalLayoutGroup>();
+            colLayout.spacing = 14;
+            colLayout.childForceExpandWidth = false;
+            colLayout.childForceExpandHeight = true;
+            colLayout.childControlWidth = true;
+            colLayout.childControlHeight = true;
+            SetLayout(columns, preferredHeight: 420);
+
+            var articleList = BuildScrollColumn(columns.transform, "Articles", 480);
+            var partsColumn = CreateUIObject("PartsColumn", columns.transform, out _);
+            var partsColLayout = partsColumn.AddComponent<VerticalLayoutGroup>();
+            partsColLayout.spacing = 8;
+            partsColLayout.childForceExpandWidth = true;
+            partsColLayout.childForceExpandHeight = false;
+            partsColLayout.childControlWidth = true;
+            partsColLayout.childControlHeight = true;
+            SetLayout(partsColumn, preferredWidth: 580, flexibleWidth: 1);
+
+            var selectedText = CreateText(partsColumn.transform, "SelectedArticle",
+                "Выбери статью слева", 20, TextAnchor.MiddleLeft);
+            selectedText.fontStyle = FontStyle.Bold;
+            SetLayout(selectedText.gameObject, preferredHeight: 34);
+
+            var partList = BuildScrollColumn(partsColumn.transform, "Parts", 0);
+
+            var closeButton = CreateButton(panel.transform, "CloseButton", "Отмена",
+                new Color(0.35f, 0.24f, 0.26f));
+            SetLayout(closeButton.gameObject, preferredHeight: 48);
+
+            var ui = root.AddComponent<ArticlePickerUI>();
+            var so = new SerializedObject(ui);
+            so.FindProperty("_root").objectReferenceValue = root;
+            so.FindProperty("_searchInput").objectReferenceValue = searchInput;
+            so.FindProperty("_articleListParent").objectReferenceValue = articleList;
+            so.FindProperty("_partListParent").objectReferenceValue = partList;
+            so.FindProperty("_selectedArticleText").objectReferenceValue = selectedText;
+            so.FindProperty("_closeButton").objectReferenceValue = closeButton;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            return ui;
+        }
+
+        /// <summary>Скроллируемая колонка; возвращает контейнер для элементов.</summary>
+        private static RectTransform BuildScrollColumn(Transform parent, string name, float width)
+        {
+            var scrollGo = CreateUIObject(name, parent, out _);
+            scrollGo.AddComponent<Image>().color = new Color(0.13f, 0.14f, 0.18f);
+
+            if (width > 0)
+                SetLayout(scrollGo, preferredWidth: width, flexibleWidth: 0);
+            else
+                SetLayout(scrollGo, preferredHeight: 380, flexibleWidth: 1);
+
+            var scrollRect = scrollGo.AddComponent<ScrollRect>();
+            scrollRect.horizontal = false;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+
+            var viewport = CreateUIObject("Viewport", scrollGo.transform, out var viewportRt);
+            viewportRt.anchorMin = Vector2.zero;
+            viewportRt.anchorMax = Vector2.one;
+            viewportRt.offsetMin = Vector2.zero;
+            viewportRt.offsetMax = Vector2.zero;
+            viewport.AddComponent<Image>().color = new Color(0, 0, 0, 0.01f);
+            viewport.AddComponent<Mask>().showMaskGraphic = false;
+            scrollRect.viewport = viewportRt;
+
+            var content = CreateUIObject("Content", viewport.transform, out var contentRt);
+            contentRt.anchorMin = new Vector2(0, 1);
+            contentRt.anchorMax = new Vector2(1, 1);
+            contentRt.pivot = new Vector2(0.5f, 1);
+            scrollRect.content = contentRt;
+
+            var layout = content.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(8, 8, 8, 8);
+            layout.spacing = 6;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+
+            var fitter = content.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            return contentRt;
         }
 
         // ---------- Примитивы UI ----------
@@ -621,6 +904,90 @@ namespace Musornulsya.EditorTools
             textRt.offsetMax = new Vector2(-6, -2);
 
             return button;
+        }
+
+        /// <summary>
+        /// Выпадающий список. Собирается вручную, потому что стандартный
+        /// шаблон Dropdown живёт в редакторных ресурсах uGUI и из кода
+        /// не создаётся — без шаблона список просто не раскрывался бы.
+        /// </summary>
+        private static Dropdown CreateDropdown(Transform parent, string name)
+        {
+            var go = CreateUIObject(name, parent, out _);
+            go.AddComponent<Image>().color = new Color(0.09f, 0.1f, 0.13f);
+
+            var dropdown = go.AddComponent<Dropdown>();
+
+            var label = CreateText(go.transform, "Label", "", 18, TextAnchor.MiddleLeft);
+            var labelRt = label.rectTransform;
+            labelRt.anchorMin = Vector2.zero;
+            labelRt.anchorMax = Vector2.one;
+            labelRt.offsetMin = new Vector2(12, 2);
+            labelRt.offsetMax = new Vector2(-24, -2);
+
+            // ---- Шаблон раскрывающегося списка ----
+            var template = CreateUIObject("Template", go.transform, out var templateRt);
+            templateRt.anchorMin = new Vector2(0, 0);
+            templateRt.anchorMax = new Vector2(1, 0);
+            templateRt.pivot = new Vector2(0.5f, 1);
+            templateRt.anchoredPosition = new Vector2(0, 2);
+            templateRt.sizeDelta = new Vector2(0, 160);
+            template.AddComponent<Image>().color = new Color(0.16f, 0.17f, 0.21f);
+
+            var templateScroll = template.AddComponent<ScrollRect>();
+            templateScroll.horizontal = false;
+            templateScroll.movementType = ScrollRect.MovementType.Clamped;
+
+            var viewport = CreateUIObject("Viewport", template.transform, out var viewportRt);
+            viewportRt.anchorMin = Vector2.zero;
+            viewportRt.anchorMax = Vector2.one;
+            viewportRt.offsetMin = Vector2.zero;
+            viewportRt.offsetMax = Vector2.zero;
+            viewportRt.pivot = new Vector2(0, 1);
+            viewport.AddComponent<Image>().color = new Color(0, 0, 0, 0.01f);
+            viewport.AddComponent<Mask>().showMaskGraphic = false;
+            templateScroll.viewport = viewportRt;
+
+            var content = CreateUIObject("Content", viewport.transform, out var contentRt);
+            contentRt.anchorMin = new Vector2(0, 1);
+            contentRt.anchorMax = new Vector2(1, 1);
+            contentRt.pivot = new Vector2(0.5f, 1);
+            contentRt.sizeDelta = new Vector2(0, 40);
+            templateScroll.content = contentRt;
+
+            var item = CreateUIObject("Item", content.transform, out var itemRt);
+            itemRt.anchorMin = new Vector2(0, 0.5f);
+            itemRt.anchorMax = new Vector2(1, 0.5f);
+            itemRt.sizeDelta = new Vector2(0, 36);
+
+            var itemToggle = item.AddComponent<Toggle>();
+
+            var itemBg = CreateUIObject("Item Background", item.transform, out var itemBgRt);
+            itemBgRt.anchorMin = Vector2.zero;
+            itemBgRt.anchorMax = Vector2.one;
+            itemBgRt.offsetMin = Vector2.zero;
+            itemBgRt.offsetMax = Vector2.zero;
+            var itemBgImage = itemBg.AddComponent<Image>();
+            itemBgImage.color = new Color(0.22f, 0.24f, 0.3f);
+
+            var itemLabel = CreateText(item.transform, "Item Label", "", 18, TextAnchor.MiddleLeft);
+            var itemLabelRt = itemLabel.rectTransform;
+            itemLabelRt.anchorMin = Vector2.zero;
+            itemLabelRt.anchorMax = Vector2.one;
+            itemLabelRt.offsetMin = new Vector2(12, 1);
+            itemLabelRt.offsetMax = new Vector2(-12, -1);
+
+            itemToggle.targetGraphic = itemBgImage;
+            itemToggle.isOn = true;
+
+            dropdown.template = templateRt;
+            dropdown.captionText = label;
+            dropdown.itemText = itemLabel;
+            dropdown.targetGraphic = go.GetComponent<Image>();
+
+            template.SetActive(false);
+
+            return dropdown;
         }
 
         private static InputField CreateInputField(Transform parent, string name, string placeholder)

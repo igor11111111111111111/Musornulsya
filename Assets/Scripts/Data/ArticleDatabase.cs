@@ -18,6 +18,9 @@ namespace Musornulsya.Data
         public int TotalCount => _all.Count;
         public int UnusedCount => _all.Count - _used.Count;
 
+        /// <summary>Все статьи-части — для экрана выбора у ведущего.</summary>
+        public IReadOnlyList<ArticleRef> AllArticles => _all;
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
