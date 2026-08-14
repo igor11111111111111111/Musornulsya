@@ -188,11 +188,13 @@ namespace Musornulsya.EditorTools
             awardLayout.childControlHeight = true;
             SetLayout(awardGroup, preferredWidth: 130, flexibleWidth: 0);
 
+            // Высоту задаём явно: без неё layout ужимал кнопку так,
+            // что подпись обрезалась и оставался пустой прямоугольник.
             var plus1 = CreateButton(awardGroup.transform, "Plus1", "+1", AccentColor);
-            SetLayout(plus1.gameObject, preferredWidth: 60, flexibleWidth: 0);
+            SetLayout(plus1.gameObject, preferredWidth: 58, preferredHeight: 38, flexibleWidth: 0);
 
             var plus2 = CreateButton(awardGroup.transform, "Plus2", "+2", AccentColor);
-            SetLayout(plus2.gameObject, preferredWidth: 60, flexibleWidth: 0);
+            SetLayout(plus2.gameObject, preferredWidth: 58, preferredHeight: 38, flexibleWidth: 0);
 
             var row = root.AddComponent<PlayerRowUI>();
             var so = new SerializedObject(row);

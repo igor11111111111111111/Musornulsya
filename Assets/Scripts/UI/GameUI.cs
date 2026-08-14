@@ -178,6 +178,7 @@ namespace Musornulsya.UI
                 RoundPhase.Answering when answered => "Ответ принят",
                 RoundPhase.Answering => "Пиши статью и часть",
                 RoundPhase.Lobby => "Ждём, пока ведущий начнёт",
+                RoundPhase.Reveal => "Раунд окончен — ждём следующий",
                 _ => "",
             };
 
@@ -206,6 +207,10 @@ namespace Musornulsya.UI
             {
                 if (p == null || p.Object == null || !p.Object.IsValid) continue;
                 if (string.IsNullOrEmpty(p.PlayerName.Value)) continue;
+
+                // Ведущий загадывает статью, а не отвечает — в таблице ответов
+                // ему делать нечего, иначе он висел там с «(не ответил)».
+                if (p.Owner == _room.CurrentHostRef) continue;
 
                 players.Add(p);
             }
