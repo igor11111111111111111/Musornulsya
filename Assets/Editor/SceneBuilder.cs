@@ -243,7 +243,7 @@ namespace Musornulsya.EditorTools
             panelRt.anchorMin = new Vector2(0.5f, 0.5f);
             panelRt.anchorMax = new Vector2(0.5f, 0.5f);
             panelRt.pivot = new Vector2(0.5f, 0.5f);
-            panelRt.sizeDelta = new Vector2(460, 600);   // +две кнопки отладки
+            panelRt.sizeDelta = new Vector2(520, 500);
             panelRt.anchoredPosition = Vector2.zero;
 
             var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
@@ -265,8 +265,13 @@ namespace Musornulsya.EditorTools
             subtitle.color = new Color(0.65f, 0.68f, 0.75f);
             SetLayout(subtitle.gameObject, preferredHeight: 52);
 
+            // Имя — отдельно и крупнее остальных полей: это первое,
+            // что нужно заполнить, и без него вход невозможен.
             var nameInput = CreateInputField(panel.transform, "NameInput", "Твоё имя");
-            SetLayout(nameInput.gameObject, preferredHeight: 52);
+            nameInput.textComponent.fontSize = 24;
+            if (nameInput.placeholder is Text namePlaceholder)
+                namePlaceholder.fontSize = 24;
+            SetLayout(nameInput.gameObject, preferredHeight: 68);
 
             var createButton = CreateButton(panel.transform, "CreateButton",
                 "Создать игру  (ты ведущий)", AccentColor);
@@ -276,26 +281,51 @@ namespace Musornulsya.EditorTools
             divider.color = new Color(0.5f, 0.53f, 0.6f);
             SetLayout(divider.gameObject, preferredHeight: 30);
 
-            var codeInput = CreateInputField(panel.transform, "CodeInput", "Код комнаты");
-            codeInput.characterLimit = 5;
-            SetLayout(codeInput.gameObject, preferredHeight: 52);
+            // Код и кнопка входа — одной строкой.
+            var joinRow = CreateUIObject("JoinRow", panel.transform, out _);
+            var joinLayout = joinRow.AddComponent<HorizontalLayoutGroup>();
+            joinLayout.spacing = 10;
+            joinLayout.childForceExpandWidth = false;
+            joinLayout.childForceExpandHeight = true;
+            joinLayout.childControlWidth = true;
+            joinLayout.childControlHeight = true;
+            SetLayout(joinRow, preferredHeight: 56);
 
-            var joinButton = CreateButton(panel.transform, "JoinButton",
+            var codeInput = CreateInputField(joinRow.transform, "CodeInput", "Код комнаты");
+            codeInput.characterLimit = 5;
+            SetLayout(codeInput.gameObject, preferredWidth: 180, flexibleWidth: 0);
+
+            var joinButton = CreateButton(joinRow.transform, "JoinButton",
                 "Присоединиться  (ты игрок)", new Color(0.28f, 0.31f, 0.38f));
-            SetLayout(joinButton.gameObject, preferredHeight: 56);
+            SetLayout(joinButton.gameObject, preferredWidth: 300, flexibleWidth: 1);
 
             var status = CreateText(panel.transform, "Status", "", 17, TextAnchor.MiddleCenter);
             status.color = new Color(0.95f, 0.6f, 0.55f);
             SetLayout(status.gameObject, preferredHeight: 50);
 
-            // Отладочные входы — цвет намеренно ядовитый, чтобы не нажать случайно.
-            var debugButton = CreateButton(panel.transform, "DebugButton",
-                "Отладка: я ведущий", new Color(0.55f, 0.35f, 0.15f));
-            SetLayout(debugButton.gameObject, preferredHeight: 42);
+            // Отладка живёт в правом нижнем углу мелким шрифтом —
+            // рабочий сценарий она не должна перетягивать на себя.
+            var debugRow = CreateUIObject("DebugRow", canvas.transform, out var debugRt);
+            debugRt.anchorMin = new Vector2(1, 0);
+            debugRt.anchorMax = new Vector2(1, 0);
+            debugRt.pivot = new Vector2(1, 0);
+            debugRt.anchoredPosition = new Vector2(-16, 16);
+            debugRt.sizeDelta = new Vector2(320, 30);
 
-            var debugPlayerButton = CreateButton(panel.transform, "DebugPlayerButton",
-                "Отладка: я игрок", new Color(0.45f, 0.3f, 0.5f));
-            SetLayout(debugPlayerButton.gameObject, preferredHeight: 42);
+            var debugLayout = debugRow.AddComponent<HorizontalLayoutGroup>();
+            debugLayout.spacing = 8;
+            debugLayout.childForceExpandWidth = false;
+            debugLayout.childForceExpandHeight = true;
+            debugLayout.childControlWidth = true;
+            debugLayout.childControlHeight = true;
+
+            var debugButton = CreateSmallButton(debugRow.transform, "DebugButton",
+                "Отладка: я ведущий", new Color(0.35f, 0.24f, 0.12f));
+            SetLayout(debugButton.gameObject, preferredWidth: 156, flexibleWidth: 0);
+
+            var debugPlayerButton = CreateSmallButton(debugRow.transform, "DebugPlayerButton",
+                "Отладка: я игрок", new Color(0.3f, 0.21f, 0.34f));
+            SetLayout(debugPlayerButton.gameObject, preferredWidth: 140, flexibleWidth: 0);
 
             var lobbyGo = new GameObject("LobbyUI");
             var lobby = lobbyGo.AddComponent<LobbyUI>();
@@ -310,6 +340,18 @@ namespace Musornulsya.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
 
             EditorSceneManager.SaveScene(scene, LobbyPath);
+        }
+
+        /// <summary>Компактная кнопка для служебных действий.</summary>
+        private static Button CreateSmallButton(Transform parent, string name, string label, Color color)
+        {
+            var button = CreateButton(parent, name, label, color);
+
+            var text = button.GetComponentInChildren<Text>();
+            text.fontSize = 12;
+            text.color = new Color(0.8f, 0.82f, 0.86f);
+
+            return button;
         }
 
         // ---------- Сцена игры ----------

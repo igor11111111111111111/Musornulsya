@@ -24,7 +24,7 @@ namespace Musornulsya.UI
 
         /// <summary>Параметры партии в режиме отладки за игрока.</summary>
         private const int DebugRounds = 5;
-        private const int DebugRoundDuration = 30;
+        private const int DebugRoundDuration = 10;
 
         private void Start()
         {
@@ -77,22 +77,41 @@ namespace Musornulsya.UI
 
         private void Update()
         {
-            var hasName = !string.IsNullOrWhiteSpace(_nameInput.text);
+            // Кнопки остаются активными даже без имени: иначе непонятно,
+            // почему ничего не происходит. Причину объясняем при нажатии.
             var busy = RoomConnector.Instance != null && RoomConnector.Instance.IsBusy;
 
-            _createButton.interactable = hasName && !busy;
-            _joinButton.interactable = hasName && !busy
-                                       && !string.IsNullOrWhiteSpace(_codeInput.text);
+            _createButton.interactable = !busy;
+            _joinButton.interactable = !busy;
+        }
+
+        /// <summary>Имя обязательно — без него игрока не отличить в таблице.</summary>
+        private bool HasName()
+        {
+            if (!string.IsNullOrWhiteSpace(_nameInput.text)) return true;
+
+            _statusText.text = "Сначала введи своё имя";
+            return false;
         }
 
         private void OnCreate()
         {
+            if (!HasName()) return;
+
             _statusText.text = "Создаём комнату...";
             RoomConnector.Instance.CreateRoom(_nameInput.text.Trim());
         }
 
         private void OnJoin()
         {
+            if (!HasName()) return;
+
+            if (string.IsNullOrWhiteSpace(_codeInput.text))
+            {
+                _statusText.text = "Введи код комнаты";
+                return;
+            }
+
             _statusText.text = "Подключаемся...";
             RoomConnector.Instance.JoinRoom(_codeInput.text, _nameInput.text.Trim());
         }

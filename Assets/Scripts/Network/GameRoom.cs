@@ -138,6 +138,7 @@ namespace Musornulsya.Network
             // После деспавна RPC отправлять нельзя.
             if (Object == null || !Object.IsValid) return;
 
+            TickBotAnswers();
             TickRoundTimer();
             TickAutoHost();
 
@@ -384,36 +385,88 @@ namespace Musornulsya.Network
         /// </summary>
         private void AnswerForBots(string articleNumber, string articlePart)
         {
+            _botPlan.Clear();
+
             var index = 0;
             foreach (var p in _players)
             {
                 if (p == null || !p.IsBot) continue;
 
+                string answerArticle;
+                string answerPart;
+
                 switch (index % 4)
                 {
                     case 0:   // всё верно
-                        p.AnswerArticle = articleNumber;
-                        p.AnswerPart = articlePart;
+                        answerArticle = articleNumber;
+                        answerPart = articlePart;
                         break;
 
                     case 1:   // статья верна, часть нет
-                        p.AnswerArticle = articleNumber;
-                        p.AnswerPart = articlePart == "1" ? "2" : "1";
+                        answerArticle = articleNumber;
+                        answerPart = articlePart == "1" ? "2" : "1";
                         break;
 
                     case 2:   // часть верна, статья нет
-                        p.AnswerArticle = "999";
-                        p.AnswerPart = articlePart;
+                        answerArticle = "999";
+                        answerPart = articlePart;
                         break;
 
                     default:  // всё мимо
-                        p.AnswerArticle = "228";
-                        p.AnswerPart = articlePart == "1" ? "3" : "1";
+                        answerArticle = "228";
+                        answerPart = articlePart == "1" ? "3" : "1";
                         break;
                 }
 
-                p.HasAnswered = true;
+                // Отвечают не разом, а на 1, 2, 3, 4 секунде: так видно,
+                // как таблица заполняется по ходу раунда, и остаётся время
+                // ответить самому.
+                _botPlan.Add(new BotAnswer
+                {
+                    Player = p,
+                    Article = answerArticle,
+                    Part = answerPart,
+                    DelaySeconds = index + 1,
+                });
+
                 index++;
+            }
+
+            _botTimer = 0f;
+        }
+
+        private struct BotAnswer
+        {
+            public PlayerState Player;
+            public string Article;
+            public string Part;
+            public float DelaySeconds;
+        }
+
+        private readonly List<BotAnswer> _botPlan = new List<BotAnswer>();
+        private float _botTimer;
+
+        /// <summary>Отправляет ответы ботов, когда подходит их срок.</summary>
+        private void TickBotAnswers()
+        {
+            if (!IsLocalHost || Phase != RoundPhase.Answering || _botPlan.Count == 0) return;
+
+            _botTimer += Time.deltaTime;
+
+            for (int i = _botPlan.Count - 1; i >= 0; i--)
+            {
+                var plan = _botPlan[i];
+                if (_botTimer < plan.DelaySeconds) continue;
+
+                if (plan.Player != null && plan.Player.Object != null && plan.Player.Object.IsValid)
+                {
+                    plan.Player.AnswerArticle = plan.Article;
+                    plan.Player.AnswerPart = plan.Part;
+                    plan.Player.HasAnswered = true;
+                }
+
+                _botPlan.RemoveAt(i);
+                NotifyChanged();
             }
         }
 
@@ -537,6 +590,9 @@ namespace Musornulsya.Network
             RevealedArticlePart = articlePart;
             Phase = RoundPhase.Reveal;
             RoundTimer = default;
+
+            // Не успевшие боты молчат — как живой игрок, не уложившийся в время.
+            _botPlan.Clear();
 
             var roundIndex = RoundNumber - 1;
 
