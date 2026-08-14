@@ -36,6 +36,8 @@ namespace Musornulsya.UI
             if (player == null) return;
 
             var name = player.PlayerName.Value;
+            if (player.IsBot) name += " [бот]";
+
             _nameText.text = player.IsConnected ? name : $"{name} (не в сети)";
             _nameText.color = player.IsConnected ? Color.white : new Color(1f, 1f, 1f, 0.4f);
 

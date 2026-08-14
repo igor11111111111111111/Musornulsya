@@ -235,12 +235,84 @@ namespace Musornulsya.Network
             NotifyChanged();
         }
 
-        // ---- Управление раундом (только ведущий) ----
+        // ---- Отладочные боты ----
 
-        public void StartRound()
+        /// <summary>
+        /// Добавляет фейковых игроков, чтобы гонять флоу игры в одиночку.
+        /// Сеть они не проверяют — только логику раундов и вёрстку таблицы.
+        /// </summary>
+        public void AddDebugBots(int count)
         {
             if (!IsLocalHost) return;
+
+            for (int i = 0; i < count; i++)
+            {
+                var joinOrder = NextJoinOrder;
+                var botName = $"Бот {i + 1}";
+
+                var obj = Runner.Spawn(
+                    _playerStatePrefab,
+                    Vector3.zero,
+                    Quaternion.identity,
+                    Object.StateAuthority,
+                    (runner, spawned) =>
+                    {
+                        var s = spawned.GetComponent<PlayerState>();
+                        s.PersistentId = $"bot_{joinOrder}";
+                        s.PlayerName = botName;
+                        s.Owner = PlayerRef.None;   // за ботом нет клиента
+                        s.IsConnected = true;
+                        s.IsBot = true;
+                        s.Score = 0;
+                        s.JoinOrder = joinOrder;
+                    });
+
+                if (obj == null) return;   // сцена ещё грузится, попробуем позже
+
+                NextJoinOrder = joinOrder + 1;
+            }
+
+            NotifyChanged();
+        }
+
+        /// <summary>
+        /// Боты отвечают за себя сами: часть угадывает статью с частью,
+        /// часть — только статью, часть ошибается. Так видно все три
+        /// варианта подсветки в таблице ведущего.
+        /// </summary>
+        private void AnswerForBots(string articleNumber, string articlePart)
+        {
+            var index = 0;
+            foreach (var p in _players)
+            {
+                if (p == null || !p.IsBot) continue;
+
+                p.Answer = (index % 3) switch
+                {
+                    0 => $"{articleNumber} ч.{articlePart}",   // полное совпадение
+                    1 => articleNumber,                        // только статья
+                    _ => "228 ч.1",                            // мимо
+                };
+
+                p.HasAnswered = true;
+                index++;
+            }
+        }
+
+        // ---- Управление раундом (только ведущий) ----
+
+        /// <summary>
+        /// Загаданная статья передаётся только ради ботов — живым игрокам
+        /// её знать нельзя, поэтому в сеть она не уходит до Reveal.
+        /// </summary>
+        public void StartRound(string articleNumber = null, string articlePart = null)
+        {
+            if (!IsLocalHost) return;
+
             RPC_StartRound();
+
+            if (!string.IsNullOrEmpty(articleNumber))
+                AnswerForBots(articleNumber, articlePart);
         }
 
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]

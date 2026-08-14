@@ -243,7 +243,7 @@ namespace Musornulsya.EditorTools
             panelRt.anchorMin = new Vector2(0.5f, 0.5f);
             panelRt.anchorMax = new Vector2(0.5f, 0.5f);
             panelRt.pivot = new Vector2(0.5f, 0.5f);
-            panelRt.sizeDelta = new Vector2(460, 470);
+            panelRt.sizeDelta = new Vector2(460, 540);   // +кнопка отладки
             panelRt.anchoredPosition = Vector2.zero;
 
             var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
@@ -288,6 +288,11 @@ namespace Musornulsya.EditorTools
             status.color = new Color(0.95f, 0.6f, 0.55f);
             SetLayout(status.gameObject, preferredHeight: 50);
 
+            // Отладочный вход — цвет намеренно ядовитый, чтобы не нажать случайно.
+            var debugButton = CreateButton(panel.transform, "DebugButton",
+                "Отладка: комната с ботами", new Color(0.55f, 0.35f, 0.15f));
+            SetLayout(debugButton.gameObject, preferredHeight: 44);
+
             var lobbyGo = new GameObject("LobbyUI");
             var lobby = lobbyGo.AddComponent<LobbyUI>();
             var so = new SerializedObject(lobby);
@@ -296,6 +301,7 @@ namespace Musornulsya.EditorTools
             so.FindProperty("_createButton").objectReferenceValue = createButton;
             so.FindProperty("_joinButton").objectReferenceValue = joinButton;
             so.FindProperty("_statusText").objectReferenceValue = status;
+            so.FindProperty("_debugButton").objectReferenceValue = debugButton;
             so.ApplyModifiedPropertiesWithoutUndo();
 
             EditorSceneManager.SaveScene(scene, LobbyPath);

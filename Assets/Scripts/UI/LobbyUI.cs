@@ -13,6 +13,10 @@ namespace Musornulsya.UI
         [SerializeField] private Button _createButton;
         [SerializeField] private Button _joinButton;
         [SerializeField] private Text _statusText;
+        [SerializeField] private Button _debugButton;
+
+        /// <summary>Сколько ботов сажать в комнату по кнопке отладки.</summary>
+        private const int DebugBotCount = 3;
 
         private void Start()
         {
@@ -21,6 +25,9 @@ namespace Musornulsya.UI
 
             _createButton.onClick.AddListener(OnCreate);
             _joinButton.onClick.AddListener(OnJoin);
+
+            if (_debugButton != null)
+                _debugButton.onClick.AddListener(OnDebugStart);
 
             if (RoomConnector.Instance != null)
             {
@@ -82,6 +89,43 @@ namespace Musornulsya.UI
         private void OnFailed(string message)
         {
             _statusText.text = message;
+        }
+
+        /// <summary>
+        /// Быстрый старт для отладки: создаёт комнату и сажает ботов,
+        /// чтобы гонять флоу игры без второго клиента.
+        /// Сеть при этом не проверяется — боты живут на стороне ведущего.
+        /// </summary>
+        private void OnDebugStart()
+        {
+            var name = string.IsNullOrWhiteSpace(_nameInput.text)
+                ? "Ведущий"
+                : _nameInput.text.Trim();
+
+            _statusText.text = "Отладка: создаём комнату с ботами...";
+            RoomConnector.Instance.CreateRoom(name);
+            StartCoroutine(AddBotsWhenReady());
+        }
+
+        private System.Collections.IEnumerator AddBotsWhenReady()
+        {
+            // Комната появляется не мгновенно: сперва подключение,
+            // затем загрузка сцены, только потом спавн GameRoom.
+            var timeout = 15f;
+            while (timeout > 0f)
+            {
+                var room = GameRoom.Instance;
+                if (room != null && room.Object != null && room.Object.IsValid && room.IsLocalHost)
+                {
+                    room.AddDebugBots(DebugBotCount);
+                    yield break;
+                }
+
+                timeout -= Time.deltaTime;
+                yield return null;
+            }
+
+            Debug.LogWarning("[LobbyUI] Комната так и не появилась — боты не добавлены.");
         }
     }
 }

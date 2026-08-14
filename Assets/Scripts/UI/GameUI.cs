@@ -210,7 +210,9 @@ namespace Musornulsya.UI
 
                 // Ведущий загадывает статью, а не отвечает — в таблице ответов
                 // ему делать нечего, иначе он висел там с «(не ответил)».
-                if (p.Owner == _room.CurrentHostRef) continue;
+                // Ботов это не касается: у них Owner пустой, как и у ведущего
+                // до подключения, поэтому проверяем флаг отдельно.
+                if (!p.IsBot && p.Owner == _room.CurrentHostRef) continue;
 
                 players.Add(p);
             }
@@ -257,7 +259,9 @@ namespace Musornulsya.UI
         {
             if (!_currentArticle.IsValid) OnRandomArticle();
             _articleTextGroup.SetActive(false);
-            _room?.StartRound();
+
+            // Статью передаём для ботов — они отвечают сразу после старта.
+            _room?.StartRound(_currentArticle.number, _currentArticle.part);
         }
 
         private void OnReveal()

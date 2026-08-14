@@ -81,3 +81,4 @@ MonoBehaviour:
   _HasAnswered: 0
   _IsConnected: 0
   _JoinOrder: 0
+  _IsBot: 0

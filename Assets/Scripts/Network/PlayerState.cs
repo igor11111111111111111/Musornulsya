@@ -31,6 +31,12 @@ namespace Musornulsya.Network
         /// <summary>Порядок входа — по нему выбираем и.о. ведущего, если настоящий отвалился.</summary>
         [Networked] public int JoinOrder { get; set; }
 
+        /// <summary>
+        /// Фейковый игрок для отладки: отвечает сам, никакого клиента за ним нет.
+        /// В таблице помечается, чтобы не спутать с живым.
+        /// </summary>
+        [Networked] public bool IsBot { get; set; }
+
         public bool IsLocal => Runner != null && Owner == Runner.LocalPlayer;
 
         public override void Spawned()
