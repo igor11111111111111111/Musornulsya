@@ -24,6 +24,13 @@ namespace Musornulsya.Network
         public string RoomCode { get; private set; }
         public bool IsBusy { get; private set; }
 
+        /// <summary>
+        /// Индекс игровой сцены в Build Settings. Берём по пути, а не числом,
+        /// чтобы порядок сцен в списке можно было менять безнаказанно.
+        /// </summary>
+        private int GameSceneBuildIndex =>
+            SceneUtility.GetBuildIndexByScenePath($"Assets/Scenes/{_gameSceneName}.unity");
+
         public event Action<string> Failed;
 
         /// <summary>
@@ -83,14 +90,25 @@ namespace Musornulsya.Network
             Runner = runnerObject.AddComponent<NetworkRunner>();
             Runner.ProvideInput = false;
 
-            // Подключаемся, НЕ уходя из лобби. Раньше сцена грузилась заранее,
-            // и при неверном коде игрок успевал увидеть пустой игровой экран,
-            // прежде чем его выбрасывало обратно с ошибкой.
+            // Без менеджера сцен Fusion не загрузит сцену, указанную в StartGameArgs.
+            runnerObject.AddComponent<NetworkSceneManagerDefault>();
+
+            // Подключаемся, НЕ уходя из лобби: при неверном коде игрок иначе
+            // успевал увидеть пустой игровой экран, прежде чем его выбрасывало
+            // обратно с ошибкой.
+            //
+            // Сцену при этом указываем явно. Передать Scene = default нельзя —
+            // Fusion тогда пишет «no network scene will be loaded» и не
+            // синхронизирует объекты в ней: PlayerState не спавнился, а лог
+            // заполнялся AssertException про рассинхрон тиков.
+            var sceneInfo = new NetworkSceneInfo();
+            sceneInfo.AddSceneRef(SceneRef.FromIndex(GameSceneBuildIndex), LoadSceneMode.Single);
+
             var result = await Runner.StartGame(new StartGameArgs
             {
                 GameMode = GameMode.Shared,
                 SessionName = code,
-                Scene = default,
+                Scene = sceneInfo,
                 PlayerCount = 6,
 
                 // Присоединяющийся не должен создавать комнату: без этого Fusion
@@ -113,12 +131,11 @@ namespace Musornulsya.Network
                 return;   // остаёмся в лобби — уходить было некуда
             }
 
-            // Комната есть — только теперь показываем игровой экран.
-            await SceneManager.LoadSceneAsync(_gameSceneName);
             IsBusy = false;
 
-            // Объект комнаты спавнит только создатель. Присоединившиеся получают
-            // его по сети — Fusion реплицирует спавн всем в Shared Mode.
+            // Сцену уже загрузил менеджер сцен Fusion при успешном StartGame.
+            // Объект комнаты спавнит только создатель — присоединившиеся
+            // получают его по сети, Fusion реплицирует спавн всем в Shared Mode.
             if (createIfMissing)
                 Runner.Spawn(_gameRoomPrefab, Vector3.zero, Quaternion.identity, Runner.LocalPlayer);
         }

@@ -101,11 +101,16 @@ namespace Musornulsya.Network
         {
             if (_joinConfirmed) return;
 
-            // Свой PlayerState уже в комнате — заявка дошла.
-            if (LocalPlayerState != null)
+            // Заявка дошла, когда в комнате есть PlayerState, закреплённый именно
+            // за нашим PlayerRef. Сверяться только по PersistentId недостаточно:
+            // при совпадении личностей чужой объект был бы принят за свой.
+            foreach (var p in _players)
             {
-                _joinConfirmed = true;
-                return;
+                if (p != null && p.Owner == Runner.LocalPlayer)
+                {
+                    _joinConfirmed = true;
+                    return;
+                }
             }
 
             if (Runner.Tick % JoinRetryTicks != 0) return;
@@ -260,8 +265,15 @@ namespace Musornulsya.Network
             return _players.FirstOrDefault(p => p != null && p.PersistentId.Value == persistentId);
         }
 
+        /// <summary>
+        /// Свой PlayerState ищем по PlayerRef, а не по PersistentId: ссылка на
+        /// текущее подключение однозначна, тогда как личности могут совпасть
+        /// (например, редактор и билд на одной машине при отладке).
+        /// </summary>
         public PlayerState LocalPlayerState =>
-            _players.FirstOrDefault(p => p != null && p.PersistentId.Value == LocalPlayerIdentity.PersistentId);
+            Runner == null
+                ? null
+                : _players.FirstOrDefault(p => p != null && p.Owner == Runner.LocalPlayer);
 
         public IEnumerable<PlayerState> SortedByScore =>
             _players.Where(p => p != null).OrderByDescending(p => p.Score).ThenBy(p => p.JoinOrder);

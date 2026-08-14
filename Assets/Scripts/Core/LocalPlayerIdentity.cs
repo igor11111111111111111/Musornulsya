@@ -12,8 +12,28 @@ namespace Musornulsya.Core
     /// </summary>
     public static class LocalPlayerIdentity
     {
-        private const string GuidKey = "musornulsya_player_guid";
-        private const string NameKey = "musornulsya_player_name";
+        /// <summary>Имя тоже разделено, иначе при тесте на одной машине
+        /// оба клиента подставляли бы одно и то же.</summary>
+        private static string NameKey =>
+#if UNITY_EDITOR
+            "musornulsya_player_name_editor";
+#else
+            "musornulsya_player_name";
+#endif
+
+        /// <summary>
+        /// Ключ GUID. В редакторе он свой: редактор и собранный билд на одной
+        /// машине делят один файл PlayerPrefs, и с общим ключом оба клиента
+        /// получали одинаковую личность — второй считал PlayerState первого
+        /// своим и не отправлял заявку на вход.
+        /// У разных игроков на разных машинах такой проблемы нет.
+        /// </summary>
+        private static string GuidKey =>
+#if UNITY_EDITOR
+            "musornulsya_player_guid_editor";
+#else
+            "musornulsya_player_guid";
+#endif
 
         private static string _cachedId;
 
