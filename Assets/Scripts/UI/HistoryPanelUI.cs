@@ -25,8 +25,12 @@ namespace Musornulsya.UI
         private static readonly Color TwoColor = new Color(0.36f, 0.95f, 0.45f);
         private static readonly Color HeaderColor = new Color(0.72f, 0.75f, 0.82f);
 
+        /// <summary>Сколько символов имени влезает в колонку игрока.</summary>
+        private const int MaxNameLength = 18;
+
         private readonly List<GameObject> _cells = new List<GameObject>();
         private Font _font;
+        private ScrollRect _scroll;
 
         private void Awake()
         {
@@ -72,6 +76,27 @@ namespace Musornulsya.UI
             }
 
             BuildGrid(sorted, Mathf.Max(totalRounds, 1));
+            StartCoroutine(ScrollToCurrentRound(totalRounds));
+        }
+
+        /// <summary>
+        /// Подматывает таблицу к текущему раунду. Ждём кадр: до перестроения
+        /// layout размеры содержимого ещё нулевые и скролл не сработал бы.
+        /// </summary>
+        private System.Collections.IEnumerator ScrollToCurrentRound(int totalRounds)
+        {
+            yield return null;
+
+            if (_scroll == null)
+                _scroll = _gridParent.GetComponentInParent<ScrollRect>();
+
+            if (_scroll == null || totalRounds <= 1) yield break;
+
+            var room = GameRoom.Instance;
+            var current = room != null ? room.RoundNumber : 0;
+
+            _scroll.horizontalNormalizedPosition = Mathf.Clamp01((float)current / totalRounds);
+            _scroll.verticalNormalizedPosition = 1f;
         }
 
         private void BuildGrid(List<PlayerState> players, int rounds)
@@ -79,34 +104,64 @@ namespace Musornulsya.UI
             foreach (var cell in _cells) Destroy(cell);
             _cells.Clear();
 
-            var grid = _gridParent.GetComponent<GridLayoutGroup>();
-            // Колонки: имя + раунды + разделитель + итог.
-            grid.constraintCount = rounds + 3;
-
             // Шапка
-            AddCell("Игрок", HeaderColor, bold: true, alignLeft: true);
+            var header = AddRow();
+            AddCell(header, "Игрок", HeaderColor, NameColumnWidth, bold: true, alignLeft: true);
             for (int r = 1; r <= rounds; r++)
-                AddCell(r.ToString(), HeaderColor, bold: true);
-            AddCell("", HeaderColor);
-            AddCell("Итого", HeaderColor, bold: true);
+                AddCell(header, r.ToString(), HeaderColor, RoundColumnWidth, bold: true);
+            AddCell(header, "", HeaderColor, SeparatorWidth);
+            AddCell(header, "Итого", HeaderColor, TotalColumnWidth, bold: true);
 
             foreach (var p in players)
             {
                 if (p == null) continue;
 
+                var row = AddRow();
+
                 var name = p.PlayerName.Value;
                 if (p.IsBot) name += " [бот]";
-                AddCell(name, Color.white, alignLeft: true);
+
+                // Режем длинное имя: иначе оно наползало на колонку итогов.
+                if (name.Length > MaxNameLength)
+                    name = name.Substring(0, MaxNameLength - 1) + "…";
+
+                AddCell(row, name, Color.white, NameColumnWidth, alignLeft: true);
 
                 for (int r = 0; r < rounds; r++)
                 {
                     var value = r < p.RoundScores.Length ? p.RoundScores[r] : 0;
-                    AddCell(value.ToString(), ColorForScore(value), bold: value > 0);
+                    AddCell(row, value.ToString(), ColorForScore(value), RoundColumnWidth,
+                        bold: value > 0);
                 }
 
-                AddCell("│", new Color(1f, 1f, 1f, 0.25f));
-                AddCell(p.Score.ToString(), Color.white, bold: true);
+                AddCell(row, "│", new Color(1f, 1f, 1f, 0.25f), SeparatorWidth);
+                AddCell(row, p.Score.ToString(), Color.white, TotalColumnWidth, bold: true);
             }
+        }
+
+        private const float NameColumnWidth = 210f;
+        private const float RoundColumnWidth = 52f;
+        private const float SeparatorWidth = 16f;
+        private const float TotalColumnWidth = 74f;
+        private const float RowHeight = 34f;
+
+        private RectTransform AddRow()
+        {
+            var go = new GameObject("Row", typeof(RectTransform));
+            go.transform.SetParent(_gridParent, false);
+
+            var layout = go.AddComponent<HorizontalLayoutGroup>();
+            layout.spacing = 4;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = true;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+
+            var le = go.AddComponent<LayoutElement>();
+            le.preferredHeight = RowHeight;
+
+            _cells.Add(go);
+            return go.GetComponent<RectTransform>();
         }
 
         private static Color ColorForScore(int value) => value switch
@@ -116,22 +171,25 @@ namespace Musornulsya.UI
             _ => ZeroColor,
         };
 
-        private void AddCell(string text, Color color, bool bold = false, bool alignLeft = false)
+        private void AddCell(RectTransform row, string text, Color color, float width,
+            bool bold = false, bool alignLeft = false)
         {
             var go = new GameObject("Cell", typeof(RectTransform));
-            go.transform.SetParent(_gridParent, false);
+            go.transform.SetParent(row, false);
 
             var label = go.AddComponent<Text>();
             label.text = text;
             label.font = _font;
-            label.fontSize = 18;
+            label.fontSize = 17;
             label.color = color;
             label.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
             label.alignment = alignLeft ? TextAnchor.MiddleLeft : TextAnchor.MiddleCenter;
-            label.horizontalOverflow = HorizontalWrapMode.Overflow;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
 
-            _cells.Add(go);
+            var le = go.AddComponent<LayoutElement>();
+            le.preferredWidth = width;
+            le.flexibleWidth = 0;
         }
     }
 }

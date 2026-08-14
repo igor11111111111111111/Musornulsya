@@ -138,6 +138,7 @@ namespace Musornulsya.Network
             // После деспавна RPC отправлять нельзя.
             if (Object == null || !Object.IsValid) return;
 
+            TickBotSpawn();
             TickBotAnswers();
             TickRoundTimer();
             TickAutoHost();
@@ -335,44 +336,58 @@ namespace Musornulsya.Network
         {
             if (!IsLocalHost) return;
 
-            for (int i = 0; i < count; i++)
+            // Ставим в очередь, а не спавним разом: Fusion возвращает null,
+            // пока не готов выдать префаб, и вся пачка терялась —
+            // в комнате оказывался только первый бот.
+            _botsToSpawn += count;
+        }
+
+        private int _botsToSpawn;
+
+        /// <summary>Досоздаёт ботов из очереди, по одному за кадр.</summary>
+        private void TickBotSpawn()
+        {
+            if (_botsToSpawn <= 0 || !IsLocalHost) return;
+
+            var joinOrder = NextJoinOrder;
+
+            // Имя говорит, какой исход подсчёта проверяет этот бот —
+            // так ошибку в баллах видно прямо в таблице.
+            var botName = (_botsSpawned % 4) switch
             {
-                var joinOrder = NextJoinOrder;
+                0 => "Бот всё верно",
+                1 => "Бот статья",
+                2 => "Бот часть",
+                _ => "Бот мимо",
+            };
 
-                // Имя говорит, какой исход подсчёта проверяет этот бот —
-                // так ошибку в баллах видно прямо в таблице.
-                var botName = (i % 4) switch
+            var obj = Runner.Spawn(
+                _playerStatePrefab,
+                Vector3.zero,
+                Quaternion.identity,
+                Object.StateAuthority,
+                (runner, spawned) =>
                 {
-                    0 => "Бот всё верно",
-                    1 => "Бот статья",
-                    2 => "Бот часть",
-                    _ => "Бот мимо",
-                };
+                    var s = spawned.GetComponent<PlayerState>();
+                    s.PersistentId = $"bot_{joinOrder}";
+                    s.PlayerName = botName;
+                    s.Owner = PlayerRef.None;   // за ботом нет клиента
+                    s.IsConnected = true;
+                    s.IsBot = true;
+                    s.Score = 0;
+                    s.JoinOrder = joinOrder;
+                });
 
-                var obj = Runner.Spawn(
-                    _playerStatePrefab,
-                    Vector3.zero,
-                    Quaternion.identity,
-                    Object.StateAuthority,
-                    (runner, spawned) =>
-                    {
-                        var s = spawned.GetComponent<PlayerState>();
-                        s.PersistentId = $"bot_{joinOrder}";
-                        s.PlayerName = botName;
-                        s.Owner = PlayerRef.None;   // за ботом нет клиента
-                        s.IsConnected = true;
-                        s.IsBot = true;
-                        s.Score = 0;
-                        s.JoinOrder = joinOrder;
-                    });
+            if (obj == null) return;   // не готов — повторим на следующем кадре
 
-                if (obj == null) return;   // сцена ещё грузится, попробуем позже
-
-                NextJoinOrder = joinOrder + 1;
-            }
+            NextJoinOrder = joinOrder + 1;
+            _botsSpawned++;
+            _botsToSpawn--;
 
             NotifyChanged();
         }
+
+        private int _botsSpawned;
 
         /// <summary>
         /// Боты отвечают за себя сами — по одному на каждый исход подсчёта:

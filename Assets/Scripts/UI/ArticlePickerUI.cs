@@ -73,7 +73,9 @@ namespace Musornulsya.UI
                 }
 
                 var number = a.number;
-                AddButton(_articleListParent, $"Ст. {a.number} — {a.title}", _articleButtons,
+                var used = ArticleDatabase.Instance.IsArticleFullyUsed(number);
+
+                AddButton(_articleListParent, number, a.title, _articleButtons, used,
                     () => SelectArticle(number));
             }
         }
@@ -92,7 +94,9 @@ namespace Musornulsya.UI
                 _selectedArticleText.text = $"Ст. {a.number} — {a.title}";
 
                 var picked = a;
-                AddButton(_partListParent, $"ч. {a.part} — {Shorten(a.text)}", _partButtons,
+                var used = ArticleDatabase.Instance.IsUsed(a.Key);
+
+                AddButton(_partListParent, $"ч. {a.part}", Shorten(a.text), _partButtons, used,
                     () =>
                     {
                         _onPicked?.Invoke(picked);
@@ -113,42 +117,89 @@ namespace Musornulsya.UI
             _partButtons.Clear();
         }
 
-        private void AddButton(RectTransform parent, string label, List<GameObject> registry,
-            UnityEngine.Events.UnityAction onClick)
+        /// <summary>
+        /// Элемент списка: слева плашка с номером (она же заменяет иконку —
+        /// у статей УК нет осмысленных изображений, а цветной блок с цифрой
+        /// одинаково хорошо цепляет взгляд), справа название или формулировка.
+        /// Уже разыгранные помечаются приглушённым цветом и пометкой «✓ было».
+        /// </summary>
+        private void AddButton(RectTransform parent, string badge, string label,
+            List<GameObject> registry, bool used, UnityEngine.Events.UnityAction onClick)
         {
             var go = new GameObject("Item", typeof(RectTransform));
             go.transform.SetParent(parent, false);
 
             var image = go.AddComponent<Image>();
-            image.color = new Color(0.18f, 0.19f, 0.24f);
+            image.color = used
+                ? new Color(0.14f, 0.15f, 0.18f)
+                : new Color(0.18f, 0.19f, 0.24f);
 
             var button = go.AddComponent<Button>();
             button.targetGraphic = image;
             button.onClick.AddListener(onClick);
 
             var le = go.AddComponent<LayoutElement>();
-            le.preferredHeight = 46;
+            le.preferredHeight = 56;
             le.flexibleWidth = 1;
 
+            var layout = go.AddComponent<HorizontalLayoutGroup>();
+            layout.padding = new RectOffset(10, 14, 8, 8);
+            layout.spacing = 12;
+            layout.childAlignment = TextAnchor.MiddleLeft;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = true;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+
+            // Плашка с номером
+            var badgeGo = new GameObject("Badge", typeof(RectTransform));
+            badgeGo.transform.SetParent(go.transform, false);
+            badgeGo.AddComponent<Image>().color = used
+                ? new Color(0.24f, 0.25f, 0.3f)
+                : new Color(0.36f, 0.55f, 0.92f);
+
+            var badgeLe = badgeGo.AddComponent<LayoutElement>();
+            badgeLe.preferredWidth = 74;
+            badgeLe.flexibleWidth = 0;
+
+            var badgeText = CreateLabel(badgeGo.transform, badge, 17, TextAnchor.MiddleCenter);
+            badgeText.fontStyle = FontStyle.Bold;
+            badgeText.color = used ? new Color(0.6f, 0.62f, 0.68f) : Color.white;
+
+            // Название или формулировка
             var textGo = new GameObject("Label", typeof(RectTransform));
             textGo.transform.SetParent(go.transform, false);
+            textGo.AddComponent<LayoutElement>().flexibleWidth = 1;
 
-            var text = textGo.AddComponent<Text>();
-            text.text = label;
+            var text = CreateLabel(textGo.transform, used ? $"{label}   ✓ было" : label,
+                15, TextAnchor.MiddleLeft);
+            text.color = used
+                ? new Color(0.55f, 0.57f, 0.62f)
+                : new Color(0.93f, 0.94f, 0.96f);
+
+            registry.Add(go);
+        }
+
+        private Text CreateLabel(Transform parent, string content, int fontSize, TextAnchor anchor)
+        {
+            var go = new GameObject("Text", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+
+            var text = go.AddComponent<Text>();
+            text.text = content;
             text.font = _font;
-            text.fontSize = 16;
-            text.color = new Color(0.93f, 0.94f, 0.96f);
-            text.alignment = TextAnchor.MiddleLeft;
+            text.fontSize = fontSize;
+            text.alignment = anchor;
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Truncate;
 
             var rt = text.rectTransform;
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
-            rt.offsetMin = new Vector2(12, 2);
-            rt.offsetMax = new Vector2(-12, -2);
+            rt.offsetMin = new Vector2(6, 2);
+            rt.offsetMax = new Vector2(-6, -2);
 
-            registry.Add(go);
+            return text;
         }
     }
 }

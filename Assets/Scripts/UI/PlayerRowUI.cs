@@ -64,7 +64,15 @@ namespace Musornulsya.UI
             _nameText.text = player.IsConnected ? name : $"{name} (не в сети)";
             _nameText.color = player.IsConnected ? Color.white : Dimmed;
 
-            _scoreText.text = player.Score.ToString();
+            // Показываем очки за текущий раунд, а итог — в скобках:
+            // так видно, что именно начислено сейчас.
+            var room = GameRoom.Instance;
+            var roundIndex = room != null ? room.RoundNumber - 1 : -1;
+
+            if (showAnswer && roundIndex >= 0 && roundIndex < player.RoundScores.Length)
+                _scoreText.text = $"{player.RoundScores[roundIndex]}  ({player.Score})";
+            else
+                _scoreText.text = player.Score.ToString();
 
             BindAnswer(player, showAnswer, target);
 

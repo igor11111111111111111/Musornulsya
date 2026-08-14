@@ -176,7 +176,7 @@ namespace Musornulsya.EditorTools
 
             var scoreText = CreateText(root.transform, "Score", "0", 22, TextAnchor.MiddleCenter);
             scoreText.fontStyle = FontStyle.Bold;
-            SetLayout(scoreText.gameObject, preferredWidth: 50, flexibleWidth: 0);
+            SetLayout(scoreText.gameObject, preferredWidth: 96, flexibleWidth: 0);
 
             // Группа кнопок начисления
             var awardGroup = CreateUIObject("AwardGroup", root.transform, out var awardRt);
@@ -676,7 +676,8 @@ namespace Musornulsya.EditorTools
             panelRt.anchorMin = new Vector2(0.5f, 0.5f);
             panelRt.anchorMax = new Vector2(0.5f, 0.5f);
             panelRt.pivot = new Vector2(0.5f, 0.5f);
-            panelRt.sizeDelta = new Vector2(1120, 620);
+            panelRt.sizeDelta = new Vector2(1000, 600);
+            panel.AddComponent<Image>().color = PanelColor;
 
             var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
             panelLayout.padding = new RectOffset(24, 24, 20, 20);
@@ -712,21 +713,26 @@ namespace Musornulsya.EditorTools
             gridViewport.AddComponent<Mask>().showMaskGraphic = false;
             gridRect.viewport = gridViewportRt;
 
+            // Строки складываем вертикально, а ячейки внутри строки —
+            // горизонтально. GridLayoutGroup здесь не годится: он делает
+            // все колонки одинаковыми, а колонка с именем должна быть шире.
             var grid = CreateUIObject("Grid", gridViewport.transform, out var gridRt);
             gridRt.anchorMin = new Vector2(0, 1);
-            gridRt.anchorMax = new Vector2(1, 1);
-            gridRt.pivot = new Vector2(0.5f, 1);
+            gridRt.anchorMax = new Vector2(0, 1);
+            gridRt.pivot = new Vector2(0, 1);
             gridRect.content = gridRt;
 
-            var gridLayout = grid.AddComponent<GridLayoutGroup>();
+            var gridLayout = grid.AddComponent<VerticalLayoutGroup>();
             gridLayout.padding = new RectOffset(12, 12, 12, 12);
-            gridLayout.cellSize = new Vector2(74, 36);
-            gridLayout.spacing = new Vector2(4, 4);
-            gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            gridLayout.constraintCount = 6;
+            gridLayout.spacing = 4;
+            gridLayout.childForceExpandWidth = false;
+            gridLayout.childForceExpandHeight = false;
+            gridLayout.childControlWidth = true;
+            gridLayout.childControlHeight = true;
 
             var gridFitter = grid.AddComponent<ContentSizeFitter>();
             gridFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            gridFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             // Кнопки
             var buttons = CreateUIObject("Buttons", panel.transform, out _);
@@ -780,7 +786,11 @@ namespace Musornulsya.EditorTools
             panelRt.anchorMin = new Vector2(0.5f, 0.5f);
             panelRt.anchorMax = new Vector2(0.5f, 0.5f);
             panelRt.pivot = new Vector2(0.5f, 0.5f);
-            panelRt.sizeDelta = new Vector2(1120, 640);
+            panelRt.sizeDelta = new Vector2(1000, 600);
+
+            // Фон под панелью: без него содержимое лежало прямо на затемнении
+            // и выглядело прижатым к краям экрана.
+            panel.AddComponent<Image>().color = PanelColor;
 
             var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
             panelLayout.padding = new RectOffset(24, 24, 20, 20);
@@ -808,7 +818,7 @@ namespace Musornulsya.EditorTools
             colLayout.childControlHeight = true;
             SetLayout(columns, preferredHeight: 420);
 
-            var articleList = BuildScrollColumn(columns.transform, "Articles", 480);
+            var articleList = BuildScrollColumn(columns.transform, "Articles", 400);
             var partsColumn = CreateUIObject("PartsColumn", columns.transform, out _);
             var partsColLayout = partsColumn.AddComponent<VerticalLayoutGroup>();
             partsColLayout.spacing = 8;

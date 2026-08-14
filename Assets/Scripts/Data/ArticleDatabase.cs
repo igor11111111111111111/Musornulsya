@@ -110,6 +110,20 @@ namespace Musornulsya.Data
 
         public void MarkUsed(string key) => _used.Add(key);
 
+        /// <summary>Выпадала ли эта часть в текущей сессии.</summary>
+        public bool IsUsed(string key) => _used.Contains(key);
+
+        /// <summary>Все ли части статьи уже разыграны.</summary>
+        public bool IsArticleFullyUsed(string number)
+        {
+            foreach (var a in _all)
+            {
+                if (a.number == number && !_used.Contains(a.Key)) return false;
+            }
+
+            return true;
+        }
+
         public void ResetUsed() => _used.Clear();
     }
 }
