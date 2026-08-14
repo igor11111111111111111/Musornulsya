@@ -200,7 +200,7 @@ namespace Musornulsya.UI
             _phaseText.text = phase switch
             {
                 RoundPhase.Lobby => "Ждём начала",
-                RoundPhase.Answering => "Слушаем ведущего и отвечаем",
+                RoundPhase.Answering => "Отвечаем",
                 RoundPhase.Reveal => "Ответы открыты",
                 RoundPhase.Finished => "Игра окончена",
                 _ => "",
@@ -234,6 +234,13 @@ namespace Musornulsya.UI
 
         private void RefreshHost(RoundPhase phase, bool revealed)
         {
+            // Статья считается разыгранной только когда раунд по ней закончился.
+            // До этого ведущий волен перебирать и просматривать сколько угодно.
+            if (revealed && !string.IsNullOrEmpty(_playedArticleKey))
+            {
+                ArticleDatabase.Instance?.MarkUsed(_playedArticleKey);
+            }
+
             _articleLabel.text = _currentArticle.IsValid
                 ? _currentArticle.FullLabel
                 : "Выбери статью";
@@ -408,11 +415,8 @@ namespace Musornulsya.UI
 
         private void OnPickArticle()
         {
-            _articlePicker.Show(article =>
-            {
-                _currentArticle = article;
-                ArticleDatabase.Instance?.MarkUsed(article.Key);
-            });
+            // Просмотр и выбор ничего не помечают — только сыгранный раунд.
+            _articlePicker.Show(article => _currentArticle = article);
         }
 
         private void OnStartRound()
@@ -420,11 +424,7 @@ namespace Musornulsya.UI
             if (!_currentArticle.IsValid) OnRandomArticle();
             if (!_currentArticle.IsValid) return;
 
-            // Помечаем разыгранной только сейчас: до старта ведущий волен
-            // перебирать статьи сколько угодно.
-            ArticleDatabase.Instance?.MarkUsed(_currentArticle.Key);
             _playedArticleKey = _currentArticle.Key;
-
             _room?.StartRound(_currentArticle.number, _currentArticle.part, SelectedDuration);
         }
 

@@ -161,13 +161,17 @@ namespace Musornulsya.UI
             // minWidth обязателен: без него layout сжимал плашку,
             // когда названию не хватало места, и цифра обрезалась.
             var badgeLe = badgeGo.AddComponent<LayoutElement>();
-            badgeLe.minWidth = 56;
-            badgeLe.preferredWidth = 56;
+            badgeLe.minWidth = 78;
+            badgeLe.preferredWidth = 78;
             badgeLe.flexibleWidth = 0;
             badgeLe.minHeight = 34;
 
-            var badgeText = CreateLabel(badgeGo.transform, badge, 17, TextAnchor.MiddleCenter);
+            // Отступы по бокам нулевые: внутри всего 3–4 цифры, и боковые
+            // поля съедали место, из-за чего номер обрезался.
+            var badgeText = CreateLabel(badgeGo.transform, badge, 17, TextAnchor.MiddleCenter,
+                horizontalPadding: 0);
             badgeText.fontStyle = FontStyle.Bold;
+            badgeText.horizontalOverflow = HorizontalWrapMode.Overflow;
             badgeText.color = used ? new Color(0.6f, 0.62f, 0.68f) : Color.white;
 
             // Название или формулировка
@@ -188,7 +192,8 @@ namespace Musornulsya.UI
             registry.Add(go);
         }
 
-        private Text CreateLabel(Transform parent, string content, int fontSize, TextAnchor anchor)
+        private Text CreateLabel(Transform parent, string content, int fontSize, TextAnchor anchor,
+            float horizontalPadding = 6f)
         {
             var go = new GameObject("Text", typeof(RectTransform));
             go.transform.SetParent(parent, false);
@@ -204,8 +209,8 @@ namespace Musornulsya.UI
             var rt = text.rectTransform;
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
-            rt.offsetMin = new Vector2(6, 2);
-            rt.offsetMax = new Vector2(-6, -2);
+            rt.offsetMin = new Vector2(horizontalPadding, 2);
+            rt.offsetMax = new Vector2(-horizontalPadding, -2);
 
             return text;
         }
