@@ -117,6 +117,13 @@ namespace Musornulsya.UI
 
         private int SelectedDuration => Durations[Mathf.Clamp(_durationDropdown.value, 0, Durations.Length - 1)];
 
+        /// <summary>
+        /// Загаданная статья для подсветки ответов. В обычной игре её выбирает
+        /// ведущий вручную, в режиме автопилота — код.
+        /// </summary>
+        private ArticleRef TargetArticle =>
+            _room != null && _room.AutoHostMode ? _room.AutoHostArticle : _currentArticle;
+
         private void Update()
         {
             // GameRoom появляется асинхронно: у ведущего — сразу, у остальных
@@ -157,7 +164,9 @@ namespace Musornulsya.UI
             // Fusion бросает InvalidOperationException на каждом кадре.
             if (_room == null || _room.Object == null || !_room.Object.IsValid) return;
 
-            var isHost = _room.IsLocalHost;
+            // В режиме автопилота владелец комнаты играет как обычный игрок:
+            // раунды ведёт код, а он отвечает наравне с ботами.
+            var isHost = _room.IsLocalHostPlaying;
             var phase = _room.Phase;
             var revealed = phase == RoundPhase.Reveal;
             var finished = phase == RoundPhase.Finished;
@@ -310,7 +319,7 @@ namespace Musornulsya.UI
                 var active = i < players.Count;
                 _rows[i].gameObject.SetActive(active);
                 if (active)
-                    _rows[i].Bind(players[i], revealed, isHost, _currentArticle);
+                    _rows[i].Bind(players[i], revealed, isHost, TargetArticle);
             }
         }
 
@@ -328,7 +337,10 @@ namespace Musornulsya.UI
                 // ему делать нечего, иначе он висел там с «(не ответил)».
                 // Ботов это не касается: у них Owner пустой, как и у ведущего
                 // до подключения, поэтому проверяем флаг отдельно.
-                if (!p.IsBot && p.Owner == _room.CurrentHostRef) continue;
+                //
+                // В режиме автопилота исключать некого: ведущего изображает код,
+                // а владелец комнаты отвечает как обычный игрок.
+                if (!_room.AutoHostMode && !p.IsBot && p.Owner == _room.CurrentHostRef) continue;
 
                 players.Add(p);
             }

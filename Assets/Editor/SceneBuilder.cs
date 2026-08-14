@@ -243,7 +243,7 @@ namespace Musornulsya.EditorTools
             panelRt.anchorMin = new Vector2(0.5f, 0.5f);
             panelRt.anchorMax = new Vector2(0.5f, 0.5f);
             panelRt.pivot = new Vector2(0.5f, 0.5f);
-            panelRt.sizeDelta = new Vector2(460, 540);   // +кнопка отладки
+            panelRt.sizeDelta = new Vector2(460, 600);   // +две кнопки отладки
             panelRt.anchoredPosition = Vector2.zero;
 
             var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
@@ -288,10 +288,14 @@ namespace Musornulsya.EditorTools
             status.color = new Color(0.95f, 0.6f, 0.55f);
             SetLayout(status.gameObject, preferredHeight: 50);
 
-            // Отладочный вход — цвет намеренно ядовитый, чтобы не нажать случайно.
+            // Отладочные входы — цвет намеренно ядовитый, чтобы не нажать случайно.
             var debugButton = CreateButton(panel.transform, "DebugButton",
-                "Отладка: комната с ботами", new Color(0.55f, 0.35f, 0.15f));
-            SetLayout(debugButton.gameObject, preferredHeight: 44);
+                "Отладка: я ведущий", new Color(0.55f, 0.35f, 0.15f));
+            SetLayout(debugButton.gameObject, preferredHeight: 42);
+
+            var debugPlayerButton = CreateButton(panel.transform, "DebugPlayerButton",
+                "Отладка: я игрок", new Color(0.45f, 0.3f, 0.5f));
+            SetLayout(debugPlayerButton.gameObject, preferredHeight: 42);
 
             var lobbyGo = new GameObject("LobbyUI");
             var lobby = lobbyGo.AddComponent<LobbyUI>();
@@ -302,6 +306,7 @@ namespace Musornulsya.EditorTools
             so.FindProperty("_joinButton").objectReferenceValue = joinButton;
             so.FindProperty("_statusText").objectReferenceValue = status;
             so.FindProperty("_debugButton").objectReferenceValue = debugButton;
+            so.FindProperty("_debugPlayerButton").objectReferenceValue = debugPlayerButton;
             so.ApplyModifiedPropertiesWithoutUndo();
 
             EditorSceneManager.SaveScene(scene, LobbyPath);

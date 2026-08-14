@@ -84,6 +84,17 @@ namespace Musornulsya.Network
 
         [Networked] public int NextJoinOrder { get; set; }
 
+        /// <summary>
+        /// Отладка: ведущего изображает автопилот, а живой участник играет
+        /// как обычный игрок. Владельцем комнаты он остаётся технически —
+        /// без реального клиента раунды запускать некому.
+        /// </summary>
+        [Networked, OnChangedRender(nameof(NotifyChanged))]
+        public bool AutoHostMode { get; set; }
+
+        /// <summary>Ведущий-автопилот сам ведёт игру — панель ведущего не нужна.</summary>
+        public bool IsLocalHostPlaying => IsLocalHost && !AutoHostMode;
+
         /// <summary>Ведущий ли локальный клиент.</summary>
         public bool IsLocalHost => Runner != null && Runner.LocalPlayer == CurrentHostRef;
 
@@ -128,6 +139,7 @@ namespace Musornulsya.Network
             if (Object == null || !Object.IsValid) return;
 
             TickRoundTimer();
+            TickAutoHost();
 
             if (_joinConfirmed) return;
 
@@ -257,6 +269,62 @@ namespace Musornulsya.Network
         }
 
         // ---- Отладочные боты ----
+
+        /// <summary>
+        /// Включает режим, где ведущего изображает автопилот, а живой участник
+        /// играет как обычный игрок: со своим полем ввода и начислением баллов.
+        /// </summary>
+        public void EnableAutoHost(int totalRounds, int roundDuration)
+        {
+            if (!IsLocalHost) return;
+
+            AutoHostMode = true;
+            TotalRounds = Mathf.Max(1, totalRounds);
+            RoundDuration = roundDuration;
+
+            _autoHostDelay = AutoHostPauseSeconds;
+            NotifyChanged();
+        }
+
+        /// <summary>Пауза между автоматическими раундами, секунды.</summary>
+        private const float AutoHostPauseSeconds = 4f;
+
+        private float _autoHostDelay;
+
+        /// <summary>
+        /// Автопилот ведущего: выбирает статью, запускает раунд, после показа
+        /// ответов выжидает паузу и идёт дальше. Живой участник в это время
+        /// отвечает наравне с ботами.
+        /// </summary>
+        private void TickAutoHost()
+        {
+            if (!AutoHostMode || !IsLocalHost) return;
+            if (Phase == RoundPhase.Finished) return;
+
+            // Раунд идёт — ждём его завершения по таймеру или по ответам.
+            if (Phase == RoundPhase.Answering) return;
+
+            _autoHostDelay -= Time.deltaTime;
+            if (_autoHostDelay > 0f) return;
+
+            _autoHostDelay = AutoHostPauseSeconds;
+
+            // Раунды кончились — показываем итоги.
+            if (TotalRounds > 0 && RoundNumber >= TotalRounds)
+            {
+                RPC_FinishGame();
+                return;
+            }
+
+            if (Data.ArticleDatabase.Instance == null) return;
+            if (!Data.ArticleDatabase.Instance.TryGetRandomUnused(out var article)) return;
+
+            AutoHostArticle = article;
+            StartRound(article.number, article.part, RoundDuration);
+        }
+
+        /// <summary>Что загадал автопилот — нужно UI, чтобы подсветить ответы.</summary>
+        public Data.ArticleRef AutoHostArticle { get; private set; }
 
         /// <summary>
         /// Добавляет фейковых игроков, чтобы гонять флоу игры в одиночку.
@@ -440,7 +508,11 @@ namespace Musornulsya.Network
             foreach (var p in _players)
             {
                 if (p == null || !p.IsConnected) continue;
-                if (!p.IsBot && p.Owner == CurrentHostRef) continue;   // ведущий не отвечает
+
+                // Ведущий не отвечает — кроме режима автопилота, где он играет
+                // наравне со всеми. Без этой оговорки раунд заканчивался бы
+                // мгновенно: боты отвечают сразу, а живого никто не ждал.
+                if (!AutoHostMode && !p.IsBot && p.Owner == CurrentHostRef) continue;
 
                 anyPlayer = true;
                 if (!p.HasAnswered) return false;

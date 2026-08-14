@@ -14,12 +14,17 @@ namespace Musornulsya.UI
         [SerializeField] private Button _joinButton;
         [SerializeField] private Text _statusText;
         [SerializeField] private Button _debugButton;
+        [SerializeField] private Button _debugPlayerButton;
 
         /// <summary>
         /// По одному боту на каждый исход подсчёта: всё верно, только статья,
         /// только часть, всё мимо.
         /// </summary>
         private const int DebugBotCount = 4;
+
+        /// <summary>Параметры партии в режиме отладки за игрока.</summary>
+        private const int DebugRounds = 5;
+        private const int DebugRoundDuration = 30;
 
         private void Start()
         {
@@ -31,6 +36,9 @@ namespace Musornulsya.UI
 
             if (_debugButton != null)
                 _debugButton.onClick.AddListener(OnDebugStart);
+
+            if (_debugPlayerButton != null)
+                _debugPlayerButton.onClick.AddListener(OnDebugAsPlayer);
 
             if (RoomConnector.Instance != null)
             {
@@ -107,10 +115,26 @@ namespace Musornulsya.UI
 
             _statusText.text = "Отладка: создаём комнату с ботами...";
             RoomConnector.Instance.CreateRoom(name);
-            StartCoroutine(AddBotsWhenReady());
+            StartCoroutine(AddBotsWhenReady(autoHost: false));
         }
 
-        private System.Collections.IEnumerator AddBotsWhenReady()
+        /// <summary>
+        /// Отладка со стороны игрока: раунды ведёт автопилот, а мы отвечаем
+        /// наравне с ботами. Комнатой всё равно владеем мы — без реального
+        /// клиента запускать раунды было бы некому.
+        /// </summary>
+        private void OnDebugAsPlayer()
+        {
+            var name = string.IsNullOrWhiteSpace(_nameInput.text)
+                ? "Игрок"
+                : _nameInput.text.Trim();
+
+            _statusText.text = "Отладка: играем за игрока...";
+            RoomConnector.Instance.CreateRoom(name);
+            StartCoroutine(AddBotsWhenReady(autoHost: true));
+        }
+
+        private System.Collections.IEnumerator AddBotsWhenReady(bool autoHost)
         {
             // Комната появляется не мгновенно: сперва подключение,
             // затем загрузка сцены, только потом спавн GameRoom.
@@ -121,6 +145,10 @@ namespace Musornulsya.UI
                 if (room != null && room.Object != null && room.Object.IsValid && room.IsLocalHost)
                 {
                     room.AddDebugBots(DebugBotCount);
+
+                    if (autoHost)
+                        room.EnableAutoHost(DebugRounds, DebugRoundDuration);
+
                     yield break;
                 }
 
