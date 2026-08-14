@@ -317,7 +317,8 @@ namespace Musornulsya.EditorTools
 
             var roundText = CreateText(header.transform, "RoundText", "Лобби", 24, TextAnchor.MiddleLeft);
             roundText.fontStyle = FontStyle.Bold;
-            SetLayout(roundText.gameObject, preferredWidth: 160, flexibleWidth: 0);
+            // Шире обычного: сюда попадает ещё и имя игрока.
+            SetLayout(roundText.gameObject, preferredWidth: 300, flexibleWidth: 0);
 
             var phaseText = CreateText(header.transform, "PhaseText", "", 18, TextAnchor.MiddleLeft);
             phaseText.color = new Color(0.65f, 0.68f, 0.75f);

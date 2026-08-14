@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Musornulsya.Core;
 using Musornulsya.Data;
 using Musornulsya.Network;
 using UnityEngine;
@@ -108,7 +109,10 @@ namespace Musornulsya.UI
             _hostPanel.SetActive(isHost);
             _playerPanel.SetActive(!isHost);
 
-            _roundText.text = _room.RoundNumber > 0 ? $"Раунд {_room.RoundNumber}" : "Лобби";
+            // Имя в шапке — сразу видно, какое окно за кого играет.
+            var who = LocalPlayerIdentity.PlayerName;
+            var stage = _room.RoundNumber > 0 ? $"Раунд {_room.RoundNumber}" : "Лобби";
+            _roundText.text = string.IsNullOrEmpty(who) ? stage : $"{stage} — {who}";
             _phaseText.text = phase switch
             {
                 RoundPhase.Lobby => "Ждём начала",

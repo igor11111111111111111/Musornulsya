@@ -101,8 +101,12 @@ namespace Musornulsya.Network
             // Fusion тогда пишет «no network scene will be loaded» и не
             // синхронизирует объекты в ней: PlayerState не спавнился, а лог
             // заполнялся AssertException про рассинхрон тиков.
+            // Additive, а не Single: игровая сцена ДОБАВЛЯЕТСЯ к лобби.
+            // При Single Unity выгружает сцену, в которой живёт раннер, и связь
+            // рвётся — лог заполняется AssertException про рассинхрон тиков,
+            // а объекты комнаты не доезжают. Так же сделано в штатном меню Fusion.
             var sceneInfo = new NetworkSceneInfo();
-            sceneInfo.AddSceneRef(SceneRef.FromIndex(GameSceneBuildIndex), LoadSceneMode.Single);
+            sceneInfo.AddSceneRef(SceneRef.FromIndex(GameSceneBuildIndex), LoadSceneMode.Additive);
 
             var result = await Runner.StartGame(new StartGameArgs
             {
@@ -131,6 +135,11 @@ namespace Musornulsya.Network
                 return;   // остаёмся в лобби — уходить было некуда
             }
 
+            // Лобби загружено additive-режимом рядом с игрой, поэтому его
+            // интерфейс надо спрятать вручную, иначе он просвечивал бы сквозь
+            // игровой экран.
+            SetLobbyVisible(false);
+
             IsBusy = false;
 
             // Сцену уже загрузил менеджер сцен Fusion при успешном StartGame.
@@ -144,6 +153,7 @@ namespace Musornulsya.Network
         {
             if (Runner != null)
             {
+                // Shutdown выгружает и сетевую сцену, загруженную через Fusion.
                 Runner.Shutdown();
                 Destroy(Runner.gameObject);
                 Runner = null;
@@ -153,7 +163,26 @@ namespace Musornulsya.Network
             LastError = null;
             RoomCode = null;
 
-            SceneManager.LoadScene("Lobby");
+            // Лобби никуда не девалось — оно всё это время лежало под игрой.
+            SetLobbyVisible(true);
+        }
+
+        /// <summary>
+        /// Показывает или прячет интерфейс лобби. Сцена лобби остаётся
+        /// загруженной, пока идёт игра: сетевая сцена добавляется поверх неё,
+        /// а не заменяет её.
+        /// </summary>
+        private static void SetLobbyVisible(bool visible)
+        {
+            var lobbyScene = SceneManager.GetSceneByName("Lobby");
+            if (!lobbyScene.IsValid() || !lobbyScene.isLoaded) return;
+
+            foreach (var root in lobbyScene.GetRootGameObjects())
+            {
+                // Менеджеры помечены DontDestroyOnLoad и в этой сцене не лежат,
+                // так что скрываем всё подряд без разбора.
+                root.SetActive(visible);
+            }
         }
 
         private static string GenerateRoomCode()
