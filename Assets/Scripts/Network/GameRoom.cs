@@ -97,9 +97,15 @@ namespace Musornulsya.Network
         /// комнаты уже есть, но связь с её владельцем может быть ещё не готова,
         /// и такой RPC молча теряется — игрок не появлялся в таблице.
         /// </summary>
-        public override void FixedUpdateNetwork()
+        /// <summary>
+        /// Обычный Update, а не FixedUpdateNetwork: последний вызывается только
+        /// для объектов, которые клиент симулирует. У присоединившегося игрока
+        /// GameRoom принадлежит ведущему и не симулируется — заявка на вход
+        /// оттуда не уходила никогда, и игрок не появлялся в таблице.
+        /// </summary>
+        private void Update()
         {
-            if (_joinConfirmed) return;
+            if (_joinConfirmed || Runner == null || !Runner.IsRunning) return;
 
             // Заявка дошла, когда в комнате есть PlayerState, закреплённый именно
             // за нашим PlayerRef. Сверяться только по PersistentId недостаточно:
@@ -113,7 +119,9 @@ namespace Musornulsya.Network
                 }
             }
 
-            if (Runner.Tick % JoinRetryTicks != 0) return;
+            _retryTimer -= Time.deltaTime;
+            if (_retryTimer > 0f) return;
+            _retryTimer = JoinRetryInterval;
 
             RPC_RequestJoin(
                 LocalPlayerIdentity.PersistentId,
@@ -122,9 +130,10 @@ namespace Musornulsya.Network
         }
 
         private bool _joinConfirmed;
+        private float _retryTimer;
 
-        /// <summary>Пауза между повторами заявки — примерно раз в полсекунды.</summary>
-        private const int JoinRetryTicks = 30;
+        /// <summary>Пауза между повторами заявки, секунды.</summary>
+        private const float JoinRetryInterval = 0.5f;
 
         public override void Despawned(NetworkRunner runner, bool hasState)
         {
@@ -154,6 +163,14 @@ namespace Musornulsya.Network
             else
             {
                 var obj = Runner.Spawn(_playerStatePrefab, Vector3.zero, Quaternion.identity, Object.StateAuthority);
+                if (obj == null)
+                {
+                    Debug.LogError(
+                        "[GameRoom] Не удалось заспавнить PlayerState — " +
+                        "проверь Player State Prefab в префабе GameRoom.");
+                    return;
+                }
+
                 var state = obj.GetComponent<PlayerState>();
                 state.PersistentId = persistentId;
                 state.PlayerName = playerName;
@@ -161,6 +178,8 @@ namespace Musornulsya.Network
                 state.IsConnected = true;
                 state.Score = 0;
                 state.JoinOrder = NextJoinOrder++;
+
+                Debug.Log($"[GameRoom] Игрок принят: {playerName.Value} ({who})");
             }
 
             // Настоящий ведущий вернулся — забирает роль обратно у и.о.
