@@ -83,21 +83,14 @@ namespace Musornulsya.Network
             Runner = runnerObject.AddComponent<NetworkRunner>();
             Runner.ProvideInput = false;
 
-            // Сцену грузим сами и только потом стартуем раннер — он поднимется
-            // уже в ней, и заспавненные объекты окажутся в правильной сцене.
-            // Отдавать загрузку менеджеру Fusion нельзя: LoadSceneMode.Single
-            // выгружает сцену вместе с раннером и ломает синхронизацию
-            // (AssertException: tick >= sc._latestTickAcknowledged).
-            await SceneManager.LoadSceneAsync(_gameSceneName);
-
-            var sceneInfo = new NetworkSceneInfo();
-            sceneInfo.AddSceneRef(SceneRef.FromIndex(SceneManager.GetActiveScene().buildIndex));
-
+            // Подключаемся, НЕ уходя из лобби. Раньше сцена грузилась заранее,
+            // и при неверном коде игрок успевал увидеть пустой игровой экран,
+            // прежде чем его выбрасывало обратно с ошибкой.
             var result = await Runner.StartGame(new StartGameArgs
             {
                 GameMode = GameMode.Shared,
                 SessionName = code,
-                Scene = sceneInfo,
+                Scene = default,
                 PlayerCount = 6,
 
                 // Присоединяющийся не должен создавать комнату: без этого Fusion
@@ -106,10 +99,10 @@ namespace Musornulsya.Network
                 EnableClientSessionCreation = createIfMissing,
             });
 
-            IsBusy = false;
-
             if (!result.Ok)
             {
+                IsBusy = false;
+
                 var message = createIfMissing
                     ? $"Не удалось создать комнату:\n{result.ShutdownReason}"
                     : "Комната не найдена.\nПроверь код.";
@@ -117,9 +110,12 @@ namespace Musornulsya.Network
                 LastError = message;
                 Failed?.Invoke(message);
                 Destroy(runnerObject);
-                SceneManager.LoadScene("Lobby");
-                return;
+                return;   // остаёмся в лобби — уходить было некуда
             }
+
+            // Комната есть — только теперь показываем игровой экран.
+            await SceneManager.LoadSceneAsync(_gameSceneName);
+            IsBusy = false;
 
             // Объект комнаты спавнит только создатель. Присоединившиеся получают
             // его по сети — Fusion реплицирует спавн всем в Shared Mode.
@@ -135,6 +131,10 @@ namespace Musornulsya.Network
                 Destroy(Runner.gameObject);
                 Runner = null;
             }
+
+            // Иначе сообщение от прошлой попытки всплыло бы в лобби как новое.
+            LastError = null;
+            RoomCode = null;
 
             SceneManager.LoadScene("Lobby");
         }
