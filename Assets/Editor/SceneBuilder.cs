@@ -176,7 +176,7 @@ namespace Musornulsya.EditorTools
 
             var scoreText = CreateText(root.transform, "Score", "0", 22, TextAnchor.MiddleCenter);
             scoreText.fontStyle = FontStyle.Bold;
-            SetLayout(scoreText.gameObject, preferredWidth: 96, flexibleWidth: 0);
+            SetLayout(scoreText.gameObject, preferredWidth: 56, flexibleWidth: 0);
 
             // Группа кнопок начисления
             var awardGroup = CreateUIObject("AwardGroup", root.transform, out var awardRt);

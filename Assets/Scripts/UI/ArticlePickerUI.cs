@@ -166,13 +166,28 @@ namespace Musornulsya.UI
             badgeLe.flexibleWidth = 0;
             badgeLe.minHeight = 34;
 
-            // Отступы по бокам нулевые: внутри всего 3–4 цифры, и боковые
-            // поля съедали место, из-за чего номер обрезался.
-            var badgeText = CreateLabel(badgeGo.transform, badge, 17, TextAnchor.MiddleCenter,
-                horizontalPadding: 0);
+            // Текст номера кладём БЕЗ растяжки по краям плашки: при растяжке
+            // Wrap переносил цифры по символам, и номер обрезался.
+            // Здесь текст сам занимает нужную ширину и центрируется.
+            var badgeTextGo = new GameObject("Text", typeof(RectTransform));
+            badgeTextGo.transform.SetParent(badgeGo.transform, false);
+
+            var badgeText = badgeTextGo.AddComponent<Text>();
+            badgeText.text = badge;
+            badgeText.font = _font;
+            badgeText.fontSize = 17;
             badgeText.fontStyle = FontStyle.Bold;
+            badgeText.alignment = TextAnchor.MiddleCenter;
             badgeText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            badgeText.verticalOverflow = VerticalWrapMode.Overflow;
             badgeText.color = used ? new Color(0.6f, 0.62f, 0.68f) : Color.white;
+
+            var badgeTextRt = badgeText.rectTransform;
+            badgeTextRt.anchorMin = new Vector2(0.5f, 0.5f);
+            badgeTextRt.anchorMax = new Vector2(0.5f, 0.5f);
+            badgeTextRt.pivot = new Vector2(0.5f, 0.5f);
+            badgeTextRt.anchoredPosition = Vector2.zero;
+            badgeTextRt.sizeDelta = new Vector2(74, 30);
 
             // Название или формулировка
             var textGo = new GameObject("Label", typeof(RectTransform));
