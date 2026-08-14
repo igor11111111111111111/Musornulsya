@@ -9,10 +9,11 @@ namespace Musornulsya.UI
     public class LobbyUI : MonoBehaviour
     {
         [SerializeField] private InputField _nameInput;
+        /// <summary>
+        /// Общий код комнаты для обеих кнопок. При создании пустое поле означает
+        /// «сгенерируй сам», при подключении — обязателен.
+        /// </summary>
         [SerializeField] private InputField _codeInput;
-
-        /// <summary>Свой код комнаты. Пустое поле — код сгенерируется сам.</summary>
-        [SerializeField] private InputField _hostCodeInput;
         [SerializeField] private Button _createButton;
         [SerializeField] private Button _joinButton;
         [SerializeField] private Text _statusText;
@@ -97,7 +98,6 @@ namespace Musornulsya.UI
             _joinButton.interactable = !busy;
             _nameInput.interactable = !busy;
             _codeInput.interactable = !busy;
-            if (_hostCodeInput != null) _hostCodeInput.interactable = !busy;
 
             if (_debugButton != null) _debugButton.interactable = !busy;
             if (_debugPlayerButton != null) _debugPlayerButton.interactable = !busy;
@@ -122,9 +122,8 @@ namespace Musornulsya.UI
             _entering = true;
             _statusText.text = "Создаём комнату...";
 
-            // Пустое поле — Photon получит сгенерированный код.
-            var customCode = _hostCodeInput != null ? _hostCodeInput.text : null;
-            RoomConnector.Instance.CreateRoom(_nameInput.text.Trim(), customCode);
+            // Пустое поле — код сгенерируется автоматически.
+            RoomConnector.Instance.CreateRoom(_nameInput.text.Trim(), _codeInput.text);
         }
 
         private void OnJoin()

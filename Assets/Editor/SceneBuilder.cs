@@ -279,45 +279,24 @@ namespace Musornulsya.EditorTools
                 namePlaceholder.fontSize = 24;
             SetLayout(nameInput.gameObject, preferredHeight: 68);
 
-            // Свой код комнаты и кнопка создания — одной строкой.
-            var createRow = CreateUIObject("CreateRow", panel.transform, out _);
-            var createLayout = createRow.AddComponent<HorizontalLayoutGroup>();
-            createLayout.spacing = 10;
-            createLayout.childForceExpandWidth = false;
-            createLayout.childForceExpandHeight = true;
-            createLayout.childControlWidth = true;
-            createLayout.childControlHeight = true;
-            SetLayout(createRow, preferredHeight: 56);
+            // Код общий для обеих кнопок: при создании его можно оставить пустым
+            // и получить сгенерированный, при подключении он обязателен.
+            var codeInput = CreateInputField(panel.transform, "CodeInput",
+                "Код комнаты — или оставь пустым");
+            codeInput.characterLimit = 5;
+            SetLayout(codeInput.gameObject, preferredHeight: 56);
 
-            var hostCodeInput = CreateInputField(createRow.transform, "HostCodeInput", "Свой код");
-            hostCodeInput.characterLimit = 5;
-            SetLayout(hostCodeInput.gameObject, preferredWidth: 180, flexibleWidth: 0);
-
-            var createButton = CreateButton(createRow.transform, "CreateButton",
+            var createButton = CreateButton(panel.transform, "CreateButton",
                 "Создать игру  (ты ведущий)", AccentColor);
-            SetLayout(createButton.gameObject, preferredWidth: 300, flexibleWidth: 1);
+            SetLayout(createButton.gameObject, preferredHeight: 56);
 
             var divider = CreateText(panel.transform, "Divider", "— или —", 15, TextAnchor.MiddleCenter);
             divider.color = new Color(0.5f, 0.53f, 0.6f);
             SetLayout(divider.gameObject, preferredHeight: 30);
 
-            // Код и кнопка входа — одной строкой.
-            var joinRow = CreateUIObject("JoinRow", panel.transform, out _);
-            var joinLayout = joinRow.AddComponent<HorizontalLayoutGroup>();
-            joinLayout.spacing = 10;
-            joinLayout.childForceExpandWidth = false;
-            joinLayout.childForceExpandHeight = true;
-            joinLayout.childControlWidth = true;
-            joinLayout.childControlHeight = true;
-            SetLayout(joinRow, preferredHeight: 56);
-
-            var codeInput = CreateInputField(joinRow.transform, "CodeInput", "Код комнаты");
-            codeInput.characterLimit = 5;
-            SetLayout(codeInput.gameObject, preferredWidth: 180, flexibleWidth: 0);
-
-            var joinButton = CreateButton(joinRow.transform, "JoinButton",
+            var joinButton = CreateButton(panel.transform, "JoinButton",
                 "Присоединиться  (ты игрок)", new Color(0.28f, 0.31f, 0.38f));
-            SetLayout(joinButton.gameObject, preferredWidth: 300, flexibleWidth: 1);
+            SetLayout(joinButton.gameObject, preferredHeight: 56);
 
             var status = CreateText(panel.transform, "Status", "", 17, TextAnchor.MiddleCenter);
             status.color = new Color(0.95f, 0.6f, 0.55f);
@@ -352,7 +331,6 @@ namespace Musornulsya.EditorTools
             var so = new SerializedObject(lobby);
             so.FindProperty("_nameInput").objectReferenceValue = nameInput;
             so.FindProperty("_codeInput").objectReferenceValue = codeInput;
-            so.FindProperty("_hostCodeInput").objectReferenceValue = hostCodeInput;
             so.FindProperty("_createButton").objectReferenceValue = createButton;
             so.FindProperty("_joinButton").objectReferenceValue = joinButton;
             so.FindProperty("_statusText").objectReferenceValue = status;
