@@ -190,9 +190,12 @@ namespace Musornulsya.UI
         private void RefreshHeader(RoundPhase phase, bool finished)
         {
             // Имя в шапке — сразу видно, какое окно за кого играет.
+            // До первого раунда показываем только имя: слово «Лобби» съедало
+            // место и обрезало ник.
             var who = LocalPlayerIdentity.PlayerName;
-            var stage = _room.RoundNumber > 0 ? $"Раунд {_room.RoundNumber}" : "Лобби";
-            _roundText.text = string.IsNullOrEmpty(who) ? stage : $"{stage} — {who}";
+            _roundText.text = _room.RoundNumber > 0
+                ? $"Раунд {_room.RoundNumber} — {who}"
+                : who;
 
             _phaseText.text = phase switch
             {
@@ -247,7 +250,24 @@ namespace Musornulsya.UI
             _startRoundButton.gameObject.SetActive(!revealed);
             _startRoundButton.interactable = _currentArticle.IsValid && !answering;
 
+            // Следующий раунд нельзя начать на той же статье — сперва выбери новую.
             _nextRoundButton.gameObject.SetActive(revealed);
+
+            if (revealed)
+            {
+                var lastRound = _room.TotalRounds > 0 && _room.RoundNumber >= _room.TotalRounds;
+                var articleChanged = _currentArticle.IsValid && _currentArticle.Key != _playedArticleKey;
+
+                _nextRoundButton.interactable = lastRound || articleChanged;
+
+                var label = _nextRoundButton.GetComponentInChildren<Text>();
+                if (label != null)
+                {
+                    label.text = lastRound
+                        ? "Показать итоги"
+                        : articleChanged ? "Следующий раунд" : "Выбери новую статью";
+                }
+            }
         }
 
         private void RefreshPlayer(RoundPhase phase, bool revealed)
@@ -302,12 +322,10 @@ namespace Musornulsya.UI
         {
             var players = CollectPlayers();
 
-            // В Reveal сортируем по очкам, иначе по порядку входа —
-            // чтобы строки не прыгали, пока игроки отвечают.
-            if (revealed)
-                players.Sort((a, b) => b.Score.CompareTo(a.Score));
-            else
-                players.Sort((a, b) => a.JoinOrder.CompareTo(b.JoinOrder));
+            // Порядок всегда по входу: сортировка по очкам переставляла строки
+            // прямо под курсором, когда ведущий оспаривал ответы.
+            // Итоговый рейтинг видно в истории и на финальном табло.
+            players.Sort((a, b) => a.JoinOrder.CompareTo(b.JoinOrder));
 
             if (_rowPrefab == null) return;   // ошибку уже написали в Start
 
@@ -353,6 +371,11 @@ namespace Musornulsya.UI
             if (!finished)
             {
                 _finalShown = false;
+
+                // После «Начать заново» раунды обнуляются — снимаем блокировку
+                // кнопки следующего раунда, иначе она осталась бы серой.
+                if (_room.RoundNumber == 0) _playedArticleKey = null;
+
                 return;
             }
 
@@ -397,8 +420,16 @@ namespace Musornulsya.UI
             if (!_currentArticle.IsValid) OnRandomArticle();
             if (!_currentArticle.IsValid) return;
 
+            // Помечаем разыгранной только сейчас: до старта ведущий волен
+            // перебирать статьи сколько угодно.
+            ArticleDatabase.Instance?.MarkUsed(_currentArticle.Key);
+            _playedArticleKey = _currentArticle.Key;
+
             _room?.StartRound(_currentArticle.number, _currentArticle.part, SelectedDuration);
         }
+
+        /// <summary>Статья прошедшего раунда — пока она выбрана, новый раунд не начать.</summary>
+        private string _playedArticleKey;
 
         private void OnNextRound()
         {
@@ -411,7 +442,6 @@ namespace Musornulsya.UI
                 return;
             }
 
-            OnRandomArticle();
             OnStartRound();
         }
 

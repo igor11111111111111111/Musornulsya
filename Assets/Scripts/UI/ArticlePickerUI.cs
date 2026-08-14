@@ -158,9 +158,13 @@ namespace Musornulsya.UI
                 ? new Color(0.24f, 0.25f, 0.3f)
                 : new Color(0.36f, 0.55f, 0.92f);
 
+            // minWidth обязателен: без него layout сжимал плашку,
+            // когда названию не хватало места, и цифра обрезалась.
             var badgeLe = badgeGo.AddComponent<LayoutElement>();
-            badgeLe.preferredWidth = 74;
+            badgeLe.minWidth = 56;
+            badgeLe.preferredWidth = 56;
             badgeLe.flexibleWidth = 0;
+            badgeLe.minHeight = 34;
 
             var badgeText = CreateLabel(badgeGo.transform, badge, 17, TextAnchor.MiddleCenter);
             badgeText.fontStyle = FontStyle.Bold;
@@ -169,7 +173,11 @@ namespace Musornulsya.UI
             // Название или формулировка
             var textGo = new GameObject("Label", typeof(RectTransform));
             textGo.transform.SetParent(go.transform, false);
-            textGo.AddComponent<LayoutElement>().flexibleWidth = 1;
+
+            // Сжимается текст, а не плашка с номером.
+            var textLe = textGo.AddComponent<LayoutElement>();
+            textLe.minWidth = 0;
+            textLe.flexibleWidth = 1;
 
             var text = CreateLabel(textGo.transform, used ? $"{label}   ✓ было" : label,
                 15, TextAnchor.MiddleLeft);

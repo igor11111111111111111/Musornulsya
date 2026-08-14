@@ -177,6 +177,16 @@ namespace Musornulsya.Network
         {
             if (Instance == this) Instance = null;
             _players.Clear();
+
+            // Сбрасываем всё, что копилось за сессию: иначе при следующем входе
+            // боты досоздавались поверх старых, а разыгранные статьи оставались
+            // помеченными в новой игре.
+            _botsToSpawn = 0;
+            _botsSpawned = 0;
+            _botPlan.Clear();
+            _joinConfirmed = false;
+
+            Data.ArticleDatabase.Instance?.ResetUsed();
         }
 
         // ---- Вход и переподключение ----

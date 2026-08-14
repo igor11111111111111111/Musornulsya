@@ -65,7 +65,12 @@ namespace Musornulsya.Data
             Debug.Log($"[ArticleDatabase] загружено {_all.Count} статей-частей");
         }
 
-        /// <summary>Случайная статья, ещё не выпадавшая в этой сессии.</summary>
+        /// <summary>
+        /// Случайная статья, ещё не выпадавшая в этой сессии.
+        /// Использованной НЕ помечает: ведущий может нажать «Случайная статья»
+        /// несколько раз подряд, и статьи считались бы разыгранными зря.
+        /// Помечает StartRound через MarkUsed.
+        /// </summary>
         public bool TryGetRandomUnused(out ArticleRef result)
         {
             var pool = _all.Where(a => !_used.Contains(a.Key)).ToList();
@@ -76,7 +81,6 @@ namespace Musornulsya.Data
             }
 
             result = pool[Random.Range(0, pool.Count)];
-            _used.Add(result.Key);
             return true;
         }
 
