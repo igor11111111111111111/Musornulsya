@@ -187,9 +187,14 @@ namespace Musornulsya.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
 
             var path = PrefabsDir + "/PlayerRow.prefab";
-            var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+            PrefabUtility.SaveAsPrefabAsset(root, path);
             Object.DestroyImmediate(root);
-            return prefab.GetComponent<PlayerRowUI>();
+
+            // Грузим компонент именно из ассета: объект, который возвращает
+            // SaveAsPrefabAsset, не сериализуется как ссылка на ассет
+            // и поле в сцене осталось бы пустым.
+            AssetDatabase.SaveAssets();
+            return AssetDatabase.LoadAssetAtPath<PlayerRowUI>(path);
         }
 
         // ---------- Сцена лобби ----------

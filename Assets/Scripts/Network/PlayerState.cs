@@ -53,11 +53,7 @@ namespace Musornulsya.Network
             HasAnswered = true;
         }
 
-        /// <summary>Ведущий начисляет баллы.</summary>
-        [Rpc(RpcSources.StateAuthority, RpcTargets.StateAuthority)]
-        public void RPC_AddScore(int points)
-        {
-            Score += points;
-        }
+        // Баллы начисляются через GameRoom.RPC_Award — там же, где живёт
+        // остальная логика ведущего.
     }
 }
