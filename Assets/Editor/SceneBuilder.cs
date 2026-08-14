@@ -42,6 +42,10 @@ namespace Musornulsya.EditorTools
             var playerStatePrefab = BuildPlayerStatePrefab();
             var gameRoomPrefab = BuildGameRoomPrefab(playerStatePrefab);
 
+            // Префабы должны быть в базе до того, как сцены начнут на них ссылаться.
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
             BuildGameScene(rowPrefab);
             BuildLobbyScene(gameRoomPrefab);
 
@@ -50,8 +54,47 @@ namespace Musornulsya.EditorTools
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
+            // Ссылка на префаб строки прописывается отдельным проходом: при записи
+            // во время создания сцены она терялась при сохранении, потому что
+            // ассет ещё не был полностью зарегистрирован в базе.
+            LinkRowPrefabInGameScene();
+
             EditorSceneManager.OpenScene(LobbyPath);
             Debug.Log("[SceneBuilder] Сцены собраны: Lobby.unity и Game.unity");
+        }
+
+        /// <summary>
+        /// Открывает сохранённую сцену Game и прописывает Row Prefab в GameUI.
+        /// Отдельный проход нужен потому, что запись этой ссылки во время
+        /// создания сцены не переживала сохранение — в поле оставался fileID: 0.
+        /// </summary>
+        private static void LinkRowPrefabInGameScene()
+        {
+            var rowPrefab = AssetDatabase.LoadAssetAtPath<PlayerRowUI>(PrefabsDir + "/PlayerRow.prefab");
+            if (rowPrefab == null)
+            {
+                Debug.LogError("[SceneBuilder] PlayerRow.prefab не найден — Row Prefab останется пустым.");
+                return;
+            }
+
+            var scene = EditorSceneManager.OpenScene(GamePath, OpenSceneMode.Single);
+
+            var gameUi = Object.FindAnyObjectByType<GameUI>();
+            if (gameUi == null)
+            {
+                Debug.LogError("[SceneBuilder] В сцене Game не найден GameUI.");
+                return;
+            }
+
+            var so = new SerializedObject(gameUi);
+            so.FindProperty("_rowPrefab").objectReferenceValue = rowPrefab;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            EditorUtility.SetDirty(gameUi);
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+
+            Debug.Log("[SceneBuilder] Row Prefab привязан к GameUI.");
         }
 
         // ---------- Префабы ----------
@@ -108,7 +151,14 @@ namespace Musornulsya.EditorTools
         /// </summary>
         private static unsafe void AssignNetworkPrefabRef(SerializedProperty prop, GameObject prefab)
         {
-            if (prop == null || prefab == null) return;
+            if (prop == null || prefab == null)
+            {
+                Debug.LogError(
+                    "[SceneBuilder] Нечего записывать в NetworkPrefabRef " +
+                    $"(поле: {(prop == null ? "нет" : prop.name)}, " +
+                    $"префаб: {(prefab == null ? "нет" : prefab.name)}).");
+                return;
+            }
 
             var assetGuid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(prefab));
 
@@ -190,11 +240,24 @@ namespace Musornulsya.EditorTools
             PrefabUtility.SaveAsPrefabAsset(root, path);
             Object.DestroyImmediate(root);
 
-            // Грузим компонент именно из ассета: объект, который возвращает
-            // SaveAsPrefabAsset, не сериализуется как ссылка на ассет
+            // Ссылку на префаб надо брать из ассета: объект, который возвращает
+            // SaveAsPrefabAsset, не сериализуется как ссылка на ассет,
             // и поле в сцене осталось бы пустым.
+            //
+            // Между записью файла и появлением ассета в базе нужен явный импорт —
+            // иначе LoadAssetAtPath возвращает null, и поле снова пустое.
             AssetDatabase.SaveAssets();
-            return AssetDatabase.LoadAssetAtPath<PlayerRowUI>(path);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+
+            var rowPrefab = AssetDatabase.LoadAssetAtPath<PlayerRowUI>(path);
+            if (rowPrefab == null)
+            {
+                Debug.LogError(
+                    $"[SceneBuilder] Не удалось загрузить {path} после сохранения. " +
+                    "Назначь Row Prefab в инспекторе GameUI вручную.");
+            }
+
+            return rowPrefab;
         }
 
         // ---------- Сцена лобби ----------
@@ -521,6 +584,15 @@ namespace Musornulsya.EditorTools
 
             so.ApplyModifiedPropertiesWithoutUndo();
 
+            // Проверяем именно записанное значение: раньше пустая ссылка
+            // проходила молча, и обнаруживалась уже во время игры.
+            if (so.FindProperty("_rowPrefab").objectReferenceValue == null)
+            {
+                Debug.LogError(
+                    "[SceneBuilder] Row Prefab в GameUI остался пустым — " +
+                    "строки таблицы игроков не появятся.");
+            }
+
             EditorSceneManager.SaveScene(scene, GamePath);
         }
 
@@ -638,15 +710,34 @@ namespace Musornulsya.EditorTools
             if (flexibleWidth >= 0) le.flexibleWidth = flexibleWidth;
         }
 
+        private static Font _cachedFont;
+
+        /// <summary>
+        /// Штатный шрифт uGUI. Лежит в «unity default resources», поэтому берётся
+        /// через Resources.GetBuiltinResource — GetBuiltinExtraResource ищет его
+        /// в другом файле и валит консоль ошибками «Failed to find LegacyRuntime.ttf».
+        /// </summary>
         private static Font DefaultFont
         {
             get
             {
-                // LegacyRuntime.ttf — штатный шрифт uGUI в Unity 2022+/6.
-                var font = AssetDatabase.GetBuiltinExtraResource<Font>("LegacyRuntime.ttf");
-                if (font == null)
-                    font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                return font;
+                if (_cachedFont != null) return _cachedFont;
+
+                // Порядок важен: в Unity 6 это LegacyRuntime, в старых — Arial.
+                // Сравниваем явно: у Unity-объектов перегружён operator ==,
+                // и ?? обошёл бы эту перегрузку.
+                _cachedFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                if (_cachedFont == null)
+                    _cachedFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+                if (_cachedFont == null)
+                {
+                    Debug.LogWarning(
+                        "[SceneBuilder] Встроенный шрифт не найден — текст будет невидим. " +
+                        "Назначь шрифт в компонентах Text вручную.");
+                }
+
+                return _cachedFont;
             }
         }
 
