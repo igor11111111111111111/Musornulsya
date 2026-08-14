@@ -66,10 +66,18 @@ namespace Musornulsya.UI
 
         private void Update()
         {
-            // GameRoom появляется асинхронно — ждём и подписываемся один раз.
+            // GameRoom появляется асинхронно: у ведущего — сразу, у остальных
+            // только когда объект комнаты доедет по сети.
             if (_room == null)
             {
                 _room = GameRoom.Instance;
+
+                // Подстраховка: Instance выставляется в Spawned(), но если этот
+                // кадр случился раньше — ищем объект в сцене, иначе клиент
+                // остался бы с пустым экраном навсегда.
+                if (_room == null)
+                    _room = FindAnyObjectByType<GameRoom>();
+
                 if (_room != null && !_subscribed)
                 {
                     _room.Changed += Refresh;
@@ -164,7 +172,13 @@ namespace Musornulsya.UI
 
         private void RefreshRows(bool revealed, bool isHost)
         {
-            var players = new List<PlayerState>(GameRoom.Players);
+            // Отфильтровываем уничтоженные объекты: сортировка по ним
+            // бросила бы исключение и оборвала весь Refresh.
+            var players = new List<PlayerState>();
+            foreach (var p in GameRoom.Players)
+            {
+                if (p != null) players.Add(p);
+            }
 
             // В Reveal сортируем по очкам, иначе по порядку входа —
             // чтобы строки не прыгали, пока игроки отвечают.

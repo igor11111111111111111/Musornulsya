@@ -33,6 +33,11 @@ namespace Musornulsya.Network
 
         public static void RegisterPlayer(PlayerState p)
         {
+            // Список статический и переживает смену сцены, поэтому вычищаем
+            // уничтоженные объекты от прошлой сессии — иначе в таблице
+            // остались бы призраки после выхода и повторного входа.
+            _players.RemoveAll(x => x == null);
+
             if (!_players.Contains(p)) _players.Add(p);
             Instance?.NotifyChanged();
         }
@@ -40,6 +45,7 @@ namespace Musornulsya.Network
         public static void UnregisterPlayer(PlayerState p)
         {
             _players.Remove(p);
+            _players.RemoveAll(x => x == null);
             Instance?.NotifyChanged();
         }
 
@@ -82,11 +88,38 @@ namespace Musornulsya.Network
                 RoundNumber = 0;
             }
 
-            // Каждый клиент просит ведущего создать/восстановить его PlayerState.
-            RPC_RequestJoin(LocalPlayerIdentity.PersistentId, LocalPlayerIdentity.PlayerName, Runner.LocalPlayer);
-
             NotifyChanged();
         }
+
+        /// <summary>
+        /// Заявка на вход повторяется, пока ведущий её не подтвердит.
+        /// Одного вызова из Spawned() мало: у присоединившегося клиента объект
+        /// комнаты уже есть, но связь с её владельцем может быть ещё не готова,
+        /// и такой RPC молча теряется — игрок не появлялся в таблице.
+        /// </summary>
+        public override void FixedUpdateNetwork()
+        {
+            if (_joinConfirmed) return;
+
+            // Свой PlayerState уже в комнате — заявка дошла.
+            if (LocalPlayerState != null)
+            {
+                _joinConfirmed = true;
+                return;
+            }
+
+            if (Runner.Tick % JoinRetryTicks != 0) return;
+
+            RPC_RequestJoin(
+                LocalPlayerIdentity.PersistentId,
+                LocalPlayerIdentity.PlayerName,
+                Runner.LocalPlayer);
+        }
+
+        private bool _joinConfirmed;
+
+        /// <summary>Пауза между повторами заявки — примерно раз в полсекунды.</summary>
+        private const int JoinRetryTicks = 30;
 
         public override void Despawned(NetworkRunner runner, bool hasState)
         {
