@@ -187,9 +187,11 @@ namespace Musornulsya.Network
 
             foreach (var root in lobbyScene.GetRootGameObjects())
             {
-                // Менеджеры помечены DontDestroyOnLoad и в этой сцене не лежат,
-                // так что скрываем всё подряд без разбора.
-                root.SetActive(visible);
+                // Прячем только интерфейс. Камера и EventSystem из лобби
+                // обслуживают и игровую сцену — она грузится поверх и своих
+                // не имеет, иначе получались бы дубликаты.
+                if (root.GetComponent<Canvas>() != null)
+                    root.SetActive(visible);
             }
         }
 

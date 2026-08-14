@@ -165,7 +165,27 @@ namespace Musornulsya.Network
             }
             else
             {
-                var obj = Runner.Spawn(_playerStatePrefab, Vector3.zero, Quaternion.identity, Object.StateAuthority);
+                var joinOrder = NextJoinOrder;
+
+                // Поля заполняем в onBeforeSpawned — до того, как объект станет
+                // видимым остальным. Иначе клиенты успевали увидеть заготовку
+                // без имени, и она висела в таблице строкой «(не в сети)».
+                var obj = Runner.Spawn(
+                    _playerStatePrefab,
+                    Vector3.zero,
+                    Quaternion.identity,
+                    Object.StateAuthority,
+                    (runner, spawned) =>
+                    {
+                        var s = spawned.GetComponent<PlayerState>();
+                        s.PersistentId = persistentId;
+                        s.PlayerName = playerName;
+                        s.Owner = who;
+                        s.IsConnected = true;
+                        s.Score = 0;
+                        s.JoinOrder = joinOrder;
+                    });
+
                 if (obj == null)
                 {
                     // Не ошибка: пока менеджер сцен занят, провайдер объектов
@@ -174,14 +194,7 @@ namespace Musornulsya.Network
                     return;
                 }
 
-                var state = obj.GetComponent<PlayerState>();
-                state.PersistentId = persistentId;
-                state.PlayerName = playerName;
-                state.Owner = who;
-                state.IsConnected = true;
-                state.Score = 0;
-                state.JoinOrder = NextJoinOrder++;
-
+                NextJoinOrder = joinOrder + 1;
                 Debug.Log($"[GameRoom] Игрок принят: {playerName.Value} ({who})");
             }
 

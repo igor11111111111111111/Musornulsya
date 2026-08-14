@@ -305,8 +305,9 @@ namespace Musornulsya.EditorTools
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            CreateCamera();
-            CreateEventSystem();
+            // Ни камеры, ни EventSystem: игровая сцена грузится additive-режимом
+            // поверх лобби, и они уже есть там. Дубликаты давали предупреждения
+            // «There are 2 event systems in the scene» на каждом кадре.
 
             var canvas = CreateCanvas("GameCanvas");
             CreateBackground(canvas.transform);

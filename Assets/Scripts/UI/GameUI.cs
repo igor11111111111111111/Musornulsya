@@ -197,10 +197,17 @@ namespace Musornulsya.UI
         {
             // Отфильтровываем уничтоженные объекты: сортировка по ним
             // бросила бы исключение и оборвала весь Refresh.
+            //
+            // Заодно пропускаем объекты без имени — это заготовки, которые
+            // Fusion успел создать до того, как ведущий заполнил поля.
+            // В таблице они выглядели как пустая строка «(не в сети)».
             var players = new List<PlayerState>();
             foreach (var p in GameRoom.Players)
             {
-                if (p != null) players.Add(p);
+                if (p == null || p.Object == null || !p.Object.IsValid) continue;
+                if (string.IsNullOrEmpty(p.PlayerName.Value)) continue;
+
+                players.Add(p);
             }
 
             // В Reveal сортируем по очкам, иначе по порядку входа —
