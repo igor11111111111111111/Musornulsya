@@ -452,7 +452,7 @@ namespace Musornulsya.EditorTools
             hostRt.anchorMin = new Vector2(0, 1);
             hostRt.anchorMax = new Vector2(1, 1);
             hostRt.pivot = new Vector2(0.5f, 1);
-            hostRt.sizeDelta = new Vector2(-40, 230);
+            hostRt.sizeDelta = new Vector2(-40, 246);
             hostRt.anchoredPosition = new Vector2(0, -78);
 
             hostPanel.AddComponent<Image>().color = PanelColor;
@@ -479,12 +479,12 @@ namespace Musornulsya.EditorTools
             atbLayout.childForceExpandHeight = false;
             atbLayout.childControlWidth = true;
             atbLayout.childControlHeight = true;
-            SetLayout(articleTextBg, preferredHeight: 96);
+            SetLayout(articleTextBg, preferredHeight: 112);
 
-            var articleText = CreateText(articleTextBg.transform, "ArticleText", "", 15,
+            var articleText = CreateText(articleTextBg.transform, "ArticleText", "", 14,
                 TextAnchor.UpperLeft);
             articleText.color = new Color(0.72f, 0.75f, 0.8f);
-            SetLayout(articleText.gameObject, preferredHeight: 80);
+            SetLayout(articleText.gameObject, preferredHeight: 96);
 
             var hostButtons = CreateUIObject("HostButtons", hostPanel.transform, out _);
             var hbLayout = hostButtons.AddComponent<HorizontalLayoutGroup>();
@@ -578,7 +578,7 @@ namespace Musornulsya.EditorTools
             scrollRt.anchorMin = new Vector2(0, 0);
             scrollRt.anchorMax = new Vector2(1, 1);
             scrollRt.offsetMin = new Vector2(20, 20);
-            scrollRt.offsetMax = new Vector2(-20, -320);
+            scrollRt.offsetMax = new Vector2(-20, -336);
 
             scrollGo.AddComponent<Image>().color = new Color(0.13f, 0.14f, 0.18f);
 
@@ -829,9 +829,9 @@ namespace Musornulsya.EditorTools
             SetLayout(partsColumn, preferredWidth: 580, flexibleWidth: 1);
 
             var selectedText = CreateText(partsColumn.transform, "SelectedArticle",
-                "Выбери статью слева", 20, TextAnchor.MiddleLeft);
+                "Выбери статью слева", 17, TextAnchor.UpperLeft);
             selectedText.fontStyle = FontStyle.Bold;
-            SetLayout(selectedText.gameObject, preferredHeight: 34);
+            SetLayout(selectedText.gameObject, preferredHeight: 56);
 
             var partList = BuildScrollColumn(partsColumn.transform, "Parts", 0);
 

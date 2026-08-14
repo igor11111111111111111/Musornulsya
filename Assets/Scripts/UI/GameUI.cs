@@ -246,7 +246,8 @@ namespace Musornulsya.UI
                 : "Выбери статью";
 
             // Формулировка теперь всегда на виду — отдельной кнопки нет.
-            _articleText.text = _currentArticle.IsValid ? _currentArticle.text : "";
+            // Ведущему нужна вся справка: диспозиция, признаки части и наказание.
+            _articleText.text = _currentArticle.IsValid ? _currentArticle.FullText : "";
 
             var answering = phase == RoundPhase.Answering;
 

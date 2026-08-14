@@ -58,7 +58,8 @@ namespace Musornulsya.Data
                     number = a.number,
                     part = p.part,
                     title = a.title,
-                    text = p.text,
+                    description = a.description,
+                    signs = p.signs,
                 }))
                 .ToList();
 

@@ -91,12 +91,16 @@ namespace Musornulsya.UI
             {
                 if (a.number != number) continue;
 
-                _selectedArticleText.text = $"Ст. {a.number} — {a.title}";
+                // Диспозиция общая для всех частей — показываем её в заголовке,
+                // а в списке ниже остаются только признаки конкретных частей.
+                _selectedArticleText.text = string.IsNullOrEmpty(a.description)
+                    ? $"Ст. {a.number} — {a.title}"
+                    : $"Ст. {a.number} — {a.title}\n{a.description}";
 
                 var picked = a;
                 var used = ArticleDatabase.Instance.IsUsed(a.Key);
 
-                AddButton(_partListParent, $"ч. {a.part}", Shorten(a.text), _partButtons, used,
+                AddButton(_partListParent, $"ч. {a.part}", Shorten(a.signs), _partButtons, used,
                     () =>
                     {
                         _onPicked?.Invoke(picked);

@@ -71,6 +71,7 @@ namespace Musornulsya.UI
         /// </summary>
         private void OnReturnedToLobby()
         {
+            _entering = false;
             _statusText.text = "";
             _codeInput.text = "";
         }
@@ -79,11 +80,27 @@ namespace Musornulsya.UI
         {
             // Кнопки остаются активными даже без имени: иначе непонятно,
             // почему ничего не происходит. Причину объясняем при нажатии.
-            var busy = RoomConnector.Instance != null && RoomConnector.Instance.IsBusy;
+            //
+            // А вот пока идёт подключение — блокируем всю панель целиком,
+            // включая поля и отладочные кнопки: второй запуск поверх первого
+            // поднял бы ещё один NetworkRunner.
+            // Собственный флаг, а не только IsBusy коннектора: тот снимается
+            // сразу после StartGame, а отладочный запуск продолжается в корутине,
+            // и за это время можно было нажать вторую кнопку.
+            var busy = _entering
+                       || (RoomConnector.Instance != null && RoomConnector.Instance.IsBusy);
 
             _createButton.interactable = !busy;
             _joinButton.interactable = !busy;
+            _nameInput.interactable = !busy;
+            _codeInput.interactable = !busy;
+
+            if (_debugButton != null) _debugButton.interactable = !busy;
+            if (_debugPlayerButton != null) _debugPlayerButton.interactable = !busy;
         }
+
+        /// <summary>Идёт вход в комнату — панель заблокирована целиком.</summary>
+        private bool _entering;
 
         /// <summary>Имя обязательно — без него игрока не отличить в таблице.</summary>
         private bool HasName()
@@ -98,6 +115,7 @@ namespace Musornulsya.UI
         {
             if (!HasName()) return;
 
+            _entering = true;
             _statusText.text = "Создаём комнату...";
             RoomConnector.Instance.CreateRoom(_nameInput.text.Trim());
         }
@@ -112,12 +130,15 @@ namespace Musornulsya.UI
                 return;
             }
 
+            _entering = true;
             _statusText.text = "Подключаемся...";
             RoomConnector.Instance.JoinRoom(_codeInput.text, _nameInput.text.Trim());
         }
 
         private void OnFailed(string message)
         {
+            // Вход не удался — возвращаем панель в рабочее состояние.
+            _entering = false;
             _statusText.text = message;
         }
 
@@ -132,6 +153,7 @@ namespace Musornulsya.UI
                 ? "Ведущий"
                 : _nameInput.text.Trim();
 
+            _entering = true;
             _statusText.text = "Отладка: создаём комнату с ботами...";
             RoomConnector.Instance.CreateRoom(name);
             StartCoroutine(AddBotsWhenReady(autoHost: false));
@@ -148,6 +170,7 @@ namespace Musornulsya.UI
                 ? "Игрок"
                 : _nameInput.text.Trim();
 
+            _entering = true;
             _statusText.text = "Отладка: играем за игрока...";
             RoomConnector.Instance.CreateRoom(name);
             StartCoroutine(AddBotsWhenReady(autoHost: true));
@@ -175,6 +198,9 @@ namespace Musornulsya.UI
                 yield return null;
             }
 
+            // Не дождались — разблокируем панель, иначе она осталась бы мёртвой.
+            _entering = false;
+            _statusText.text = "Не удалось запустить отладку";
             Debug.LogWarning("[LobbyUI] Комната так и не появилась — боты не добавлены.");
         }
     }
