@@ -25,6 +25,7 @@ namespace Musornulsya.UI
             if (RoomConnector.Instance != null)
             {
                 RoomConnector.Instance.Failed += OnFailed;
+                RoomConnector.Instance.ReturnedToLobby += OnReturnedToLobby;
 
                 // Ошибка могла случиться, пока этой сцены не существовало —
                 // показываем её при возврате в лобби.
@@ -39,7 +40,21 @@ namespace Musornulsya.UI
         private void OnDestroy()
         {
             if (RoomConnector.Instance != null)
+            {
                 RoomConnector.Instance.Failed -= OnFailed;
+                RoomConnector.Instance.ReturnedToLobby -= OnReturnedToLobby;
+            }
+        }
+
+        /// <summary>
+        /// Сцена лобби не перезагружается — она всё это время лежит под игрой,
+        /// поэтому Start() при возврате не сработает и статус надо чистить руками.
+        /// Иначе висело «Создаём комнату...» от прошлой попытки.
+        /// </summary>
+        private void OnReturnedToLobby()
+        {
+            _statusText.text = "";
+            _codeInput.text = "";
         }
 
         private void Update()

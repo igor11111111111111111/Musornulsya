@@ -157,15 +157,23 @@ namespace Musornulsya.Network
                 Runner.Spawn(_gameRoomPrefab, Vector3.zero, Quaternion.identity, Runner.LocalPlayer);
         }
 
+        /// <summary>Сработало возвращение в лобби — интерфейс пора сбросить.</summary>
+        public event Action ReturnedToLobby;
+
         public void Leave()
         {
             if (Runner != null)
             {
-                // Shutdown выгружает и сетевую сцену, загруженную через Fusion.
                 Runner.Shutdown();
                 Destroy(Runner.gameObject);
                 Runner = null;
             }
+
+            // Сетевую сцену выгружаем сами: после Shutdown она может остаться
+            // загруженной, и игровой экран продолжал висеть поверх лобби.
+            var gameScene = SceneManager.GetSceneByName(_gameSceneName);
+            if (gameScene.IsValid() && gameScene.isLoaded)
+                SceneManager.UnloadSceneAsync(gameScene);
 
             // Иначе сообщение от прошлой попытки всплыло бы в лобби как новое.
             LastError = null;
@@ -173,6 +181,7 @@ namespace Musornulsya.Network
 
             // Лобби никуда не девалось — оно всё это время лежало под игрой.
             SetLobbyVisible(true);
+            ReturnedToLobby?.Invoke();
         }
 
         /// <summary>
