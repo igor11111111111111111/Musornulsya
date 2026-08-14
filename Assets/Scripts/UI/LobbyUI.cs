@@ -23,7 +23,17 @@ namespace Musornulsya.UI
             _joinButton.onClick.AddListener(OnJoin);
 
             if (RoomConnector.Instance != null)
+            {
                 RoomConnector.Instance.Failed += OnFailed;
+
+                // Ошибка могла случиться, пока этой сцены не существовало —
+                // показываем её при возврате в лобби.
+                if (!string.IsNullOrEmpty(RoomConnector.Instance.LastError))
+                {
+                    _statusText.text = RoomConnector.Instance.LastError;
+                    RoomConnector.Instance.ConsumeLastError();
+                }
+            }
         }
 
         private void OnDestroy()

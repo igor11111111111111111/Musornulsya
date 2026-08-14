@@ -26,6 +26,15 @@ namespace Musornulsya.Network
 
         public event Action<string> Failed;
 
+        /// <summary>
+        /// Текст последней ошибки. Нужен потому, что событие Failed срабатывает
+        /// до возврата в лобби — подписчик к этому моменту уничтожен вместе
+        /// со старой сценой, и сообщение бы потерялось.
+        /// </summary>
+        public string LastError { get; private set; }
+
+        public void ConsumeLastError() => LastError = null;
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -41,7 +50,7 @@ namespace Musornulsya.Network
         public async void CreateRoom(string playerName)
         {
             var code = GenerateRoomCode();
-            await Connect(code, playerName, isCreator: true);
+            await Connect(code, playerName, createIfMissing: true);
         }
 
         public async void JoinRoom(string code, string playerName)
@@ -52,10 +61,10 @@ namespace Musornulsya.Network
                 return;
             }
 
-            await Connect(code.Trim().ToUpperInvariant(), playerName, isCreator: false);
+            await Connect(code.Trim().ToUpperInvariant(), playerName, createIfMissing: false);
         }
 
-        private async Task Connect(string code, string playerName, bool isCreator)
+        private async Task Connect(string code, string playerName, bool createIfMissing)
         {
             if (IsBusy) return;
 
@@ -74,8 +83,11 @@ namespace Musornulsya.Network
             Runner = runnerObject.AddComponent<NetworkRunner>();
             Runner.ProvideInput = false;
 
-            // Сцена игры грузится до старта раннера, чтобы объекты комнаты
-            // спавнились уже в ней.
+            // Сцену грузим сами и только потом стартуем раннер — он поднимется
+            // уже в ней, и заспавненные объекты окажутся в правильной сцене.
+            // Отдавать загрузку менеджеру Fusion нельзя: LoadSceneMode.Single
+            // выгружает сцену вместе с раннером и ломает синхронизацию
+            // (AssertException: tick >= sc._latestTickAcknowledged).
             await SceneManager.LoadSceneAsync(_gameSceneName);
 
             var sceneInfo = new NetworkSceneInfo();
@@ -87,20 +99,31 @@ namespace Musornulsya.Network
                 SessionName = code,
                 Scene = sceneInfo,
                 PlayerCount = 6,
+
+                // Присоединяющийся не должен создавать комнату: без этого Fusion
+                // на несуществующий код молча заводил новую, и игрок оказывался
+                // один в пустой комнате вместо сообщения об ошибке.
+                EnableClientSessionCreation = createIfMissing,
             });
 
             IsBusy = false;
 
             if (!result.Ok)
             {
-                Failed?.Invoke($"Не удалось подключиться:\n{result.ShutdownReason}");
+                var message = createIfMissing
+                    ? $"Не удалось создать комнату:\n{result.ShutdownReason}"
+                    : "Комната не найдена.\nПроверь код.";
+
+                LastError = message;
+                Failed?.Invoke(message);
                 Destroy(runnerObject);
                 SceneManager.LoadScene("Lobby");
                 return;
             }
 
-            // Комнату спавнит только создатель. Присоединившиеся получат её по сети.
-            if (isCreator)
+            // Объект комнаты спавнит только создатель. Присоединившиеся получают
+            // его по сети — Fusion реплицирует спавн всем в Shared Mode.
+            if (createIfMissing)
                 Runner.Spawn(_gameRoomPrefab, Vector3.zero, Quaternion.identity, Runner.LocalPlayer);
         }
 
