@@ -257,6 +257,7 @@ namespace Musornulsya.UI
 
             _startRoundButton.gameObject.SetActive(!revealed);
             _startRoundButton.interactable = _currentArticle.IsValid && !answering;
+            DimLabel(_startRoundButton);
 
             // Следующий раунд нельзя начать на той же статье — сперва выбери новую.
             _nextRoundButton.gameObject.SetActive(revealed);
@@ -275,6 +276,8 @@ namespace Musornulsya.UI
                         ? "Показать итоги"
                         : articleChanged ? "Следующий раунд" : "Выбери новую статью";
                 }
+
+                DimLabel(_nextRoundButton);
             }
         }
 
@@ -303,20 +306,43 @@ namespace Musornulsya.UI
                 var number = _room.RevealedArticleNumber.Value;
                 var part = _room.RevealedArticlePart.Value;
 
-                var title = "";
+                var text = $"Правильный ответ: Ст. {number} ч. {part}";
+
+                // Показываем и диспозицию, и признаки части: ошибившийся игрок
+                // должен увидеть, чем эта часть отличается от соседних.
                 if (ArticleDatabase.Instance != null
                     && ArticleDatabase.Instance.TryGetByKey($"{number}_{part}", out var a))
                 {
-                    title = $" — {a.title}";
+                    text += $" — {a.title}";
+
+                    if (!string.IsNullOrEmpty(a.description))
+                        text += $"\n{a.description}";
+
+                    if (!string.IsNullOrEmpty(a.signs))
+                        text += $"\nПризнаки: {a.signs}";
                 }
 
-                _revealedArticleText.text = $"Правильный ответ: Ст. {number} ч. {part}{title}";
+                _revealedArticleText.text = text;
                 _revealedArticleText.gameObject.SetActive(true);
             }
             else
             {
                 _revealedArticleText.gameObject.SetActive(false);
             }
+        }
+
+        /// <summary>
+        /// Гасит подпись вместе с кнопкой: сама по себе она остаётся яркой,
+        /// и неактивная кнопка выглядела рабочей.
+        /// </summary>
+        private static void DimLabel(Selectable button)
+        {
+            var label = button.GetComponentInChildren<Text>();
+            if (label == null) return;
+
+            label.color = button.interactable
+                ? Color.white
+                : new Color(1f, 1f, 1f, 0.35f);
         }
 
         /// <summary>Номер статьи обязателен, часть — тоже; оба должны быть числами.</summary>

@@ -279,9 +279,23 @@ namespace Musornulsya.EditorTools
                 namePlaceholder.fontSize = 24;
             SetLayout(nameInput.gameObject, preferredHeight: 68);
 
-            var createButton = CreateButton(panel.transform, "CreateButton",
+            // Свой код комнаты и кнопка создания — одной строкой.
+            var createRow = CreateUIObject("CreateRow", panel.transform, out _);
+            var createLayout = createRow.AddComponent<HorizontalLayoutGroup>();
+            createLayout.spacing = 10;
+            createLayout.childForceExpandWidth = false;
+            createLayout.childForceExpandHeight = true;
+            createLayout.childControlWidth = true;
+            createLayout.childControlHeight = true;
+            SetLayout(createRow, preferredHeight: 56);
+
+            var hostCodeInput = CreateInputField(createRow.transform, "HostCodeInput", "Свой код");
+            hostCodeInput.characterLimit = 5;
+            SetLayout(hostCodeInput.gameObject, preferredWidth: 180, flexibleWidth: 0);
+
+            var createButton = CreateButton(createRow.transform, "CreateButton",
                 "Создать игру  (ты ведущий)", AccentColor);
-            SetLayout(createButton.gameObject, preferredHeight: 56);
+            SetLayout(createButton.gameObject, preferredWidth: 300, flexibleWidth: 1);
 
             var divider = CreateText(panel.transform, "Divider", "— или —", 15, TextAnchor.MiddleCenter);
             divider.color = new Color(0.5f, 0.53f, 0.6f);
@@ -338,6 +352,7 @@ namespace Musornulsya.EditorTools
             var so = new SerializedObject(lobby);
             so.FindProperty("_nameInput").objectReferenceValue = nameInput;
             so.FindProperty("_codeInput").objectReferenceValue = codeInput;
+            so.FindProperty("_hostCodeInput").objectReferenceValue = hostCodeInput;
             so.FindProperty("_createButton").objectReferenceValue = createButton;
             so.FindProperty("_joinButton").objectReferenceValue = joinButton;
             so.FindProperty("_statusText").objectReferenceValue = status;
@@ -519,7 +534,7 @@ namespace Musornulsya.EditorTools
             ppRt.anchorMin = new Vector2(0, 1);
             ppRt.anchorMax = new Vector2(1, 1);
             ppRt.pivot = new Vector2(0.5f, 1);
-            ppRt.sizeDelta = new Vector2(-40, 170);
+            ppRt.sizeDelta = new Vector2(-40, 250);
             ppRt.anchoredPosition = new Vector2(0, -78);
 
             playerPanel.AddComponent<Image>().color = PanelColor;
@@ -567,11 +582,12 @@ namespace Musornulsya.EditorTools
             submitStatus.color = new Color(0.65f, 0.68f, 0.75f);
             SetLayout(submitStatus.gameObject, preferredHeight: 28);
 
+            // Высоты хватает на заголовок, диспозицию и признаки части.
             var revealedArticleText = CreateText(playerPanel.transform, "RevealedArticle",
-                "", 21, TextAnchor.MiddleLeft);
+                "", 15, TextAnchor.UpperLeft);
             revealedArticleText.color = new Color(0.45f, 0.92f, 0.5f);
             revealedArticleText.fontStyle = FontStyle.Bold;
-            SetLayout(revealedArticleText.gameObject, preferredHeight: 32);
+            SetLayout(revealedArticleText.gameObject, preferredHeight: 108);
 
             // ---- Таблица игроков ----
             var scrollGo = CreateUIObject("PlayerList", canvas.transform, out var scrollRt);
@@ -958,6 +974,14 @@ namespace Musornulsya.EditorTools
 
             var button = go.AddComponent<Button>();
             button.targetGraphic = image;
+
+            // Неактивная кнопка гасится сильнее, чем по умолчанию: штатный
+            // disabledColor почти не отличался от обычного, и было непонятно,
+            // что кнопка не работает.
+            var colors = button.colors;
+            colors.disabledColor = new Color(0.35f, 0.35f, 0.38f, 0.5f);
+            colors.fadeDuration = 0.05f;
+            button.colors = colors;
 
             var text = CreateText(go.transform, "Label", label, 19, TextAnchor.MiddleCenter);
             var textRt = text.rectTransform;

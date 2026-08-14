@@ -54,9 +54,16 @@ namespace Musornulsya.Network
             DontDestroyOnLoad(gameObject);
         }
 
-        public async void CreateRoom(string playerName)
+        /// <summary>
+        /// Код комнаты — это SessionName в Photon, произвольная строка на нашей
+        /// стороне. Пустой код означает «сгенерируй сам».
+        /// </summary>
+        public async void CreateRoom(string playerName, string customCode = null)
         {
-            var code = GenerateRoomCode();
+            var code = string.IsNullOrWhiteSpace(customCode)
+                ? GenerateRoomCode()
+                : customCode.Trim().ToUpperInvariant();
+
             await Connect(code, playerName, createIfMissing: true);
         }
 
@@ -133,6 +140,23 @@ namespace Musornulsya.Network
                 Failed?.Invoke(message);
                 Destroy(runnerObject);
                 return;   // остаёмся в лобби — уходить было некуда
+            }
+
+            // Свой код мог оказаться занятым: Fusion в этом случае молча
+            // подключает нас к чужой комнате вторым игроком, а мы ждали роли
+            // ведущего. Отсекаем это сразу.
+            if (createIfMissing && Runner.SessionInfo != null && Runner.SessionInfo.PlayerCount > 1)
+            {
+                const string message = "Комната с таким кодом уже занята.\nВыбери другой.";
+
+                LastError = message;
+                Failed?.Invoke(message);
+
+                Runner.Shutdown();
+                Destroy(runnerObject);
+                Runner = null;
+                IsBusy = false;
+                return;
             }
 
             // Лобби загружено additive-режимом рядом с игрой, поэтому его
