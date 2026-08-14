@@ -39,7 +39,15 @@ namespace Musornulsya.UI
 
         [Header("Таблица")]
         [SerializeField] private Transform _rowsParent;
-        [SerializeField] private PlayerRowUI _rowPrefab;
+
+        /// <summary>
+        /// Префаб строки грузится из Resources, а не назначается ссылкой в сцене:
+        /// сериализованная ссылка на него не переживала пересборку сцены
+        /// и молча оставалась пустой.
+        /// </summary>
+        private const string RowPrefabPath = "PlayerRow";
+
+        private PlayerRowUI _rowPrefab;
 
         private readonly List<PlayerRowUI> _rows = new List<PlayerRowUI>();
         private ArticleRef _currentArticle;
@@ -48,6 +56,14 @@ namespace Musornulsya.UI
 
         private void Start()
         {
+            _rowPrefab = Resources.Load<PlayerRowUI>(RowPrefabPath);
+            if (_rowPrefab == null)
+            {
+                Debug.LogError(
+                    $"[GameUI] Не найден Resources/{RowPrefabPath}.prefab — " +
+                    "таблица игроков будет пустой.");
+            }
+
             _roomCodeText.text = RoomConnector.Instance != null
                 ? $"Код: {RoomConnector.Instance.RoomCode}"
                 : "";
@@ -190,6 +206,8 @@ namespace Musornulsya.UI
                 players.Sort((a, b) => b.Score.CompareTo(a.Score));
             else
                 players.Sort((a, b) => a.JoinOrder.CompareTo(b.JoinOrder));
+
+            if (_rowPrefab == null) return;   // ошибку уже написали в Start
 
             while (_rows.Count < players.Count)
                 _rows.Add(Instantiate(_rowPrefab, _rowsParent));

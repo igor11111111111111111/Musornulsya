@@ -24,6 +24,12 @@ namespace Musornulsya.EditorTools
     {
         private const string ScenesDir = "Assets/Scenes";
         private const string PrefabsDir = "Assets/Prefabs";
+
+        /// <summary>
+        /// Префаб строки таблицы лежит в Resources и грузится по имени в рантайме —
+        /// так надёжнее, чем ссылка в сцене, которая терялась при пересборке.
+        /// </summary>
+        private const string ResourcesDir = "Assets/Resources";
         private const string LobbyPath = ScenesDir + "/Lobby.unity";
         private const string GamePath = ScenesDir + "/Game.unity";
 
@@ -37,8 +43,9 @@ namespace Musornulsya.EditorTools
         {
             Directory.CreateDirectory(ScenesDir);
             Directory.CreateDirectory(PrefabsDir);
+            Directory.CreateDirectory(ResourcesDir);
 
-            var rowPrefab = BuildPlayerRowPrefab();
+            BuildPlayerRowPrefab();
             var playerStatePrefab = BuildPlayerStatePrefab();
             var gameRoomPrefab = BuildGameRoomPrefab(playerStatePrefab);
 
@@ -46,7 +53,7 @@ namespace Musornulsya.EditorTools
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            BuildGameScene(rowPrefab);
+            BuildGameScene();
             BuildLobbyScene(gameRoomPrefab);
 
             RegisterScenesInBuildSettings();
@@ -54,47 +61,8 @@ namespace Musornulsya.EditorTools
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            // Ссылка на префаб строки прописывается отдельным проходом: при записи
-            // во время создания сцены она терялась при сохранении, потому что
-            // ассет ещё не был полностью зарегистрирован в базе.
-            LinkRowPrefabInGameScene();
-
             EditorSceneManager.OpenScene(LobbyPath);
             Debug.Log("[SceneBuilder] Сцены собраны: Lobby.unity и Game.unity");
-        }
-
-        /// <summary>
-        /// Открывает сохранённую сцену Game и прописывает Row Prefab в GameUI.
-        /// Отдельный проход нужен потому, что запись этой ссылки во время
-        /// создания сцены не переживала сохранение — в поле оставался fileID: 0.
-        /// </summary>
-        private static void LinkRowPrefabInGameScene()
-        {
-            var rowPrefab = AssetDatabase.LoadAssetAtPath<PlayerRowUI>(PrefabsDir + "/PlayerRow.prefab");
-            if (rowPrefab == null)
-            {
-                Debug.LogError("[SceneBuilder] PlayerRow.prefab не найден — Row Prefab останется пустым.");
-                return;
-            }
-
-            var scene = EditorSceneManager.OpenScene(GamePath, OpenSceneMode.Single);
-
-            var gameUi = Object.FindAnyObjectByType<GameUI>();
-            if (gameUi == null)
-            {
-                Debug.LogError("[SceneBuilder] В сцене Game не найден GameUI.");
-                return;
-            }
-
-            var so = new SerializedObject(gameUi);
-            so.FindProperty("_rowPrefab").objectReferenceValue = rowPrefab;
-            so.ApplyModifiedPropertiesWithoutUndo();
-
-            EditorUtility.SetDirty(gameUi);
-            EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene);
-
-            Debug.Log("[SceneBuilder] Row Prefab привязан к GameUI.");
         }
 
         // ---------- Префабы ----------
@@ -183,7 +151,7 @@ namespace Musornulsya.EditorTools
             raw.GetFixedBufferElementAtIndex(1).longValue = guid.RawGuidValue[1];
         }
 
-        private static PlayerRowUI BuildPlayerRowPrefab()
+        private static void BuildPlayerRowPrefab()
         {
             var root = CreateUIObject("PlayerRow", null, out var rt);
             rt.sizeDelta = new Vector2(0, 52);
@@ -236,28 +204,13 @@ namespace Musornulsya.EditorTools
             so.FindProperty("_awardGroup").objectReferenceValue = awardGroup;
             so.ApplyModifiedPropertiesWithoutUndo();
 
-            var path = PrefabsDir + "/PlayerRow.prefab";
+            // Кладём в Resources — GameUI грузит его оттуда по имени.
+            var path = ResourcesDir + "/PlayerRow.prefab";
             PrefabUtility.SaveAsPrefabAsset(root, path);
             Object.DestroyImmediate(root);
 
-            // Ссылку на префаб надо брать из ассета: объект, который возвращает
-            // SaveAsPrefabAsset, не сериализуется как ссылка на ассет,
-            // и поле в сцене осталось бы пустым.
-            //
-            // Между записью файла и появлением ассета в базе нужен явный импорт —
-            // иначе LoadAssetAtPath возвращает null, и поле снова пустое.
             AssetDatabase.SaveAssets();
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
-
-            var rowPrefab = AssetDatabase.LoadAssetAtPath<PlayerRowUI>(path);
-            if (rowPrefab == null)
-            {
-                Debug.LogError(
-                    $"[SceneBuilder] Не удалось загрузить {path} после сохранения. " +
-                    "Назначь Row Prefab в инспекторе GameUI вручную.");
-            }
-
-            return rowPrefab;
         }
 
         // ---------- Сцена лобби ----------
@@ -348,7 +301,7 @@ namespace Musornulsya.EditorTools
 
         // ---------- Сцена игры ----------
 
-        private static void BuildGameScene(PlayerRowUI rowPrefab)
+        private static void BuildGameScene()
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -579,19 +532,11 @@ namespace Musornulsya.EditorTools
             so.FindProperty("_submitStatus").objectReferenceValue = submitStatus;
             so.FindProperty("_revealedArticleText").objectReferenceValue = revealedArticleText;
 
+            // Префаб строки здесь не назначается: GameUI грузит его
+            // из Resources в рантайме.
             so.FindProperty("_rowsParent").objectReferenceValue = contentRt;
-            so.FindProperty("_rowPrefab").objectReferenceValue = rowPrefab;
 
             so.ApplyModifiedPropertiesWithoutUndo();
-
-            // Проверяем именно записанное значение: раньше пустая ссылка
-            // проходила молча, и обнаруживалась уже во время игры.
-            if (so.FindProperty("_rowPrefab").objectReferenceValue == null)
-            {
-                Debug.LogError(
-                    "[SceneBuilder] Row Prefab в GameUI остался пустым — " +
-                    "строки таблицы игроков не появятся.");
-            }
 
             EditorSceneManager.SaveScene(scene, GamePath);
         }
