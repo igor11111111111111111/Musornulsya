@@ -15,8 +15,11 @@ namespace Musornulsya.UI
         [SerializeField] private Text _statusText;
         [SerializeField] private Button _debugButton;
 
-        /// <summary>Сколько ботов сажать в комнату по кнопке отладки.</summary>
-        private const int DebugBotCount = 3;
+        /// <summary>
+        /// По одному боту на каждый исход подсчёта: всё верно, только статья,
+        /// только часть, всё мимо.
+        /// </summary>
+        private const int DebugBotCount = 4;
 
         private void Start()
         {

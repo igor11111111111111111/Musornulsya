@@ -269,7 +269,16 @@ namespace Musornulsya.Network
             for (int i = 0; i < count; i++)
             {
                 var joinOrder = NextJoinOrder;
-                var botName = $"Бот {i + 1}";
+
+                // Имя говорит, какой исход подсчёта проверяет этот бот —
+                // так ошибку в баллах видно прямо в таблице.
+                var botName = (i % 4) switch
+                {
+                    0 => "Бот всё верно",
+                    1 => "Бот статья",
+                    2 => "Бот часть",
+                    _ => "Бот мимо",
+                };
 
                 var obj = Runner.Spawn(
                     _playerStatePrefab,
@@ -297,9 +306,13 @@ namespace Musornulsya.Network
         }
 
         /// <summary>
-        /// Боты отвечают за себя сами: часть угадывает статью с частью,
-        /// часть — только статью, часть ошибается. Так видно все три
-        /// варианта подсветки в таблице ведущего.
+        /// Боты отвечают за себя сами — по одному на каждый исход подсчёта:
+        ///   1 — всё верно                 → 2 балла
+        ///   2 — верна только статья       → 1 балл
+        ///   3 — верна только часть        → 0 баллов (часть без статьи не считается)
+        ///   4 — всё мимо                  → 0 баллов
+        /// Третий бот проверяет неочевидное правило: часть засчитывается
+        /// только вместе с угаданной статьёй.
         /// </summary>
         private void AnswerForBots(string articleNumber, string articlePart)
         {
@@ -308,9 +321,9 @@ namespace Musornulsya.Network
             {
                 if (p == null || !p.IsBot) continue;
 
-                switch (index % 3)
+                switch (index % 4)
                 {
-                    case 0:   // угадал полностью
+                    case 0:   // всё верно
                         p.AnswerArticle = articleNumber;
                         p.AnswerPart = articlePart;
                         break;
@@ -320,9 +333,14 @@ namespace Musornulsya.Network
                         p.AnswerPart = articlePart == "1" ? "2" : "1";
                         break;
 
-                    default:  // мимо
+                    case 2:   // часть верна, статья нет
+                        p.AnswerArticle = "999";
+                        p.AnswerPart = articlePart;
+                        break;
+
+                    default:  // всё мимо
                         p.AnswerArticle = "228";
-                        p.AnswerPart = "1";
+                        p.AnswerPart = articlePart == "1" ? "3" : "1";
                         break;
                 }
 
