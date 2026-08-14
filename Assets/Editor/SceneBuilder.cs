@@ -186,7 +186,7 @@ namespace Musornulsya.EditorTools
             awardLayout.childForceExpandHeight = true;
             awardLayout.childControlWidth = true;
             awardLayout.childControlHeight = true;
-            SetLayout(awardGroup, preferredWidth: 130, flexibleWidth: 0);
+            SetLayout(awardGroup, preferredWidth: 140, flexibleWidth: 0);
 
             // Высоту задаём явно: без неё layout ужимал кнопку так,
             // что подпись обрезалась и оставался пустой прямоугольник.
@@ -196,6 +196,11 @@ namespace Musornulsya.EditorTools
             var plus2 = CreateButton(awardGroup.transform, "Plus2", "+2", AccentColor);
             SetLayout(plus2.gameObject, preferredWidth: 58, preferredHeight: 38, flexibleWidth: 0);
 
+            // Показывается вместо +1/+2, пока ведущий не оспорил автоподсчёт.
+            var disputeButton = CreateButton(awardGroup.transform, "DisputeButton", "Оспорить",
+                new Color(0.5f, 0.33f, 0.2f));
+            SetLayout(disputeButton.gameObject, preferredWidth: 122, preferredHeight: 38, flexibleWidth: 0);
+
             var row = root.AddComponent<PlayerRowUI>();
             var so = new SerializedObject(row);
             so.FindProperty("_nameText").objectReferenceValue = nameText;
@@ -203,6 +208,7 @@ namespace Musornulsya.EditorTools
             so.FindProperty("_scoreText").objectReferenceValue = scoreText;
             so.FindProperty("_plus1").objectReferenceValue = plus1;
             so.FindProperty("_plus2").objectReferenceValue = plus2;
+            so.FindProperty("_disputeButton").objectReferenceValue = disputeButton;
             so.FindProperty("_awardGroup").objectReferenceValue = awardGroup;
             so.ApplyModifiedPropertiesWithoutUndo();
 

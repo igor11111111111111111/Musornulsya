@@ -27,9 +27,18 @@ namespace Musornulsya.UI
 
         private void Awake()
         {
-            _plus1.onClick.AddListener(() => Award(1));
-            _plus2.onClick.AddListener(() => Award(2));
-            _disputeButton.onClick.AddListener(Dispute);
+            // Проверяем каждую ссылку: пропущенная в префабе роняла Awake,
+            // и строка таблицы не создавалась вовсе.
+            if (_plus1 != null) _plus1.onClick.AddListener(() => Award(1));
+            if (_plus2 != null) _plus2.onClick.AddListener(() => Award(2));
+            if (_disputeButton != null) _disputeButton.onClick.AddListener(Dispute);
+
+            if (_plus1 == null || _plus2 == null || _disputeButton == null)
+            {
+                Debug.LogError(
+                    "[PlayerRowUI] В префабе PlayerRow не назначены кнопки — " +
+                    "пересобери сцены через Musornulsya > Собрать сцены.");
+            }
         }
 
         private void Award(int points)
@@ -65,7 +74,7 @@ namespace Musornulsya.UI
             var canJudge = isHost && showAnswer;
             _awardGroup.SetActive(canJudge);
 
-            if (canJudge)
+            if (canJudge && _disputeButton != null && _plus1 != null && _plus2 != null)
             {
                 _disputeButton.gameObject.SetActive(!player.ScoreOverridden);
                 _plus1.gameObject.SetActive(player.ScoreOverridden);
