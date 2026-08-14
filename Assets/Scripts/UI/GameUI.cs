@@ -116,7 +116,10 @@ namespace Musornulsya.UI
 
         private void Refresh()
         {
-            if (_room == null) return;
+            // Object.IsValid обязателен: при выходе из комнаты объект деспавнится,
+            // а читать [Networked]-свойства у деспавненного объекта нельзя —
+            // Fusion бросает InvalidOperationException на каждом кадре.
+            if (_room == null || _room.Object == null || !_room.Object.IsValid) return;
 
             var isHost = _room.IsLocalHost;
             var phase = _room.Phase;

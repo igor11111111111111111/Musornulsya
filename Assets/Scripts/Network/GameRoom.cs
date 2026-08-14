@@ -107,6 +107,9 @@ namespace Musornulsya.Network
         {
             if (_joinConfirmed || Runner == null || !Runner.IsRunning) return;
 
+            // После деспавна RPC отправлять нельзя.
+            if (Object == null || !Object.IsValid) return;
+
             // Заявка дошла, когда в комнате есть PlayerState, закреплённый именно
             // за нашим PlayerRef. Сверяться только по PersistentId недостаточно:
             // при совпадении личностей чужой объект был бы принят за свой.
@@ -165,9 +168,9 @@ namespace Musornulsya.Network
                 var obj = Runner.Spawn(_playerStatePrefab, Vector3.zero, Quaternion.identity, Object.StateAuthority);
                 if (obj == null)
                 {
-                    Debug.LogError(
-                        "[GameRoom] Не удалось заспавнить PlayerState — " +
-                        "проверь Player State Prefab в префабе GameRoom.");
+                    // Не ошибка: пока менеджер сцен занят, провайдер объектов
+                    // просит повторить попытку. Клиент продолжает слать заявку
+                    // раз в полсекунды, так что следующая попытка пройдёт.
                     return;
                 }
 

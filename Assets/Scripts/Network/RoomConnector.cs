@@ -140,9 +140,17 @@ namespace Musornulsya.Network
             // игровой экран.
             SetLobbyVisible(false);
 
+            // Пока менеджер сцен занят загрузкой, провайдер объектов Fusion
+            // отказывается выдавать префабы и просит повторить позже
+            // (NetworkObjectProviderDefault.DelayIfSceneManagerIsBusy).
+            // Спавн в этот момент возвращал null, и PlayerState не создавался.
+            while (Runner != null && Runner.SceneManager != null && Runner.SceneManager.IsBusy)
+                await Task.Yield();
+
             IsBusy = false;
 
-            // Сцену уже загрузил менеджер сцен Fusion при успешном StartGame.
+            if (Runner == null) return;   // успели выйти, пока грузилась сцена
+
             // Объект комнаты спавнит только создатель — присоединившиеся
             // получают его по сети, Fusion реплицирует спавн всем в Shared Mode.
             if (createIfMissing)
