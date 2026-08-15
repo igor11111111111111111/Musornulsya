@@ -463,21 +463,53 @@ namespace Musornulsya.EditorTools
             articleLabel.fontStyle = FontStyle.Bold;
             SetLayout(articleLabel.gameObject, preferredHeight: 34);
 
-            // Формулировка всегда на виду — отдельной кнопки больше нет.
+            // Формулировка всегда на виду и прокручивается: у некоторых статей
+            // перечень признаков занимает больше тысячи символов (ст. 105 ч. 2),
+            // и в фиксированный блок он не помещался.
             var articleTextBg = CreateUIObject("ArticleTextBg", hostPanel.transform, out _);
             articleTextBg.AddComponent<Image>().color = new Color(0.09f, 0.1f, 0.13f);
-            var atbLayout = articleTextBg.AddComponent<VerticalLayoutGroup>();
-            atbLayout.padding = new RectOffset(12, 12, 8, 8);
-            atbLayout.childForceExpandWidth = true;
-            atbLayout.childForceExpandHeight = false;
-            atbLayout.childControlWidth = true;
-            atbLayout.childControlHeight = true;
             SetLayout(articleTextBg, preferredHeight: 112);
 
-            var articleText = CreateText(articleTextBg.transform, "ArticleText", "", 14,
+            var articleScroll = articleTextBg.AddComponent<ScrollRect>();
+            articleScroll.horizontal = false;
+            articleScroll.movementType = ScrollRect.MovementType.Clamped;
+            articleScroll.scrollSensitivity = 24f;
+
+            var articleViewport = CreateUIObject("Viewport", articleTextBg.transform,
+                out var articleViewportRt);
+            articleViewportRt.anchorMin = Vector2.zero;
+            articleViewportRt.anchorMax = Vector2.one;
+            articleViewportRt.offsetMin = new Vector2(12, 8);
+            articleViewportRt.offsetMax = new Vector2(-12, -8);
+            articleViewport.AddComponent<Image>().color = new Color(0, 0, 0, 0.01f);
+            articleViewport.AddComponent<Mask>().showMaskGraphic = false;
+            articleScroll.viewport = articleViewportRt;
+
+            var articleContent = CreateUIObject("Content", articleViewport.transform,
+                out var articleContentRt);
+            articleContentRt.anchorMin = new Vector2(0, 1);
+            articleContentRt.anchorMax = new Vector2(1, 1);
+            articleContentRt.pivot = new Vector2(0.5f, 1);
+            articleScroll.content = articleContentRt;
+
+            var acLayout = articleContent.AddComponent<VerticalLayoutGroup>();
+            acLayout.childForceExpandWidth = true;
+            acLayout.childForceExpandHeight = false;
+            acLayout.childControlWidth = true;
+            acLayout.childControlHeight = true;
+
+            var acFitter = articleContent.AddComponent<ContentSizeFitter>();
+            acFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var articleText = CreateText(articleContent.transform, "ArticleText", "", 14,
                 TextAnchor.UpperLeft);
             articleText.color = new Color(0.72f, 0.75f, 0.8f);
-            SetLayout(articleText.gameObject, preferredHeight: 96);
+            articleText.verticalOverflow = VerticalWrapMode.Overflow;
+
+            // Высоту текст считает сам — иначе длинная формулировка
+            // не растянула бы содержимое и прокрутка не появилась бы.
+            articleText.gameObject.AddComponent<ContentSizeFitter>().verticalFit =
+                ContentSizeFitter.FitMode.PreferredSize;
 
             var hostButtons = CreateUIObject("HostButtons", hostPanel.transform, out _);
             var hbLayout = hostButtons.AddComponent<HorizontalLayoutGroup>();
@@ -560,12 +592,50 @@ namespace Musornulsya.EditorTools
             submitStatus.color = new Color(0.65f, 0.68f, 0.75f);
             SetLayout(submitStatus.gameObject, preferredHeight: 28);
 
-            // Высоты хватает на заголовок, диспозицию и признаки части.
-            var revealedArticleText = CreateText(playerPanel.transform, "RevealedArticle",
+            // Правильный ответ прокручивается: у некоторых статей перечень
+            // признаков занимает больше тысячи символов.
+            var revealedBg = CreateUIObject("RevealedBg", playerPanel.transform, out _);
+            SetLayout(revealedBg, preferredHeight: 108);
+
+            var revealedScroll = revealedBg.AddComponent<ScrollRect>();
+            revealedScroll.horizontal = false;
+            revealedScroll.movementType = ScrollRect.MovementType.Clamped;
+            revealedScroll.scrollSensitivity = 24f;
+
+            var revealedViewport = CreateUIObject("Viewport", revealedBg.transform,
+                out var revealedViewportRt);
+            revealedViewportRt.anchorMin = Vector2.zero;
+            revealedViewportRt.anchorMax = Vector2.one;
+            revealedViewportRt.offsetMin = Vector2.zero;
+            revealedViewportRt.offsetMax = Vector2.zero;
+            revealedViewport.AddComponent<Image>().color = new Color(0, 0, 0, 0.01f);
+            revealedViewport.AddComponent<Mask>().showMaskGraphic = false;
+            revealedScroll.viewport = revealedViewportRt;
+
+            var revealedContent = CreateUIObject("Content", revealedViewport.transform,
+                out var revealedContentRt);
+            revealedContentRt.anchorMin = new Vector2(0, 1);
+            revealedContentRt.anchorMax = new Vector2(1, 1);
+            revealedContentRt.pivot = new Vector2(0.5f, 1);
+            revealedScroll.content = revealedContentRt;
+
+            var rcLayout = revealedContent.AddComponent<VerticalLayoutGroup>();
+            rcLayout.childForceExpandWidth = true;
+            rcLayout.childForceExpandHeight = false;
+            rcLayout.childControlWidth = true;
+            rcLayout.childControlHeight = true;
+
+            revealedContent.AddComponent<ContentSizeFitter>().verticalFit =
+                ContentSizeFitter.FitMode.PreferredSize;
+
+            var revealedArticleText = CreateText(revealedContent.transform, "RevealedArticle",
                 "", 15, TextAnchor.UpperLeft);
             revealedArticleText.color = new Color(0.45f, 0.92f, 0.5f);
             revealedArticleText.fontStyle = FontStyle.Bold;
-            SetLayout(revealedArticleText.gameObject, preferredHeight: 108);
+            revealedArticleText.verticalOverflow = VerticalWrapMode.Overflow;
+
+            revealedArticleText.gameObject.AddComponent<ContentSizeFitter>().verticalFit =
+                ContentSizeFitter.FitMode.PreferredSize;
 
             // ---- Таблица игроков ----
             var scrollGo = CreateUIObject("PlayerList", canvas.transform, out var scrollRt);
