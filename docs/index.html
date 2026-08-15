@@ -63,6 +63,11 @@
         companyName: "DefaultCompany",
         productName: "Musornulsya",
         productVersion: "1.0",
+
+        // Новый способ сохранения PlayerPrefs: без этого флага Unity
+        // синхронизирует их вручную и пишет в консоль предупреждение
+        // об устаревшем JS_FileSystem_Sync на каждое сохранение.
+        autoSyncPersistentDataPath: true,
       }, function (progress) {
         loading.textContent = "Загрузка… " + Math.round(progress * 100) + "%";
       }).then(function () {

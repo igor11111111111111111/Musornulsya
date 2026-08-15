@@ -52,6 +52,18 @@ namespace Musornulsya.Network
 
             Instance = this;
             DontDestroyOnLoad(gameObject);
+
+            // В WebGL исключение из async-метода не всплывает в консоль браузера
+            // само — там видно только «Uncaught undefined». Логируем вручную,
+            // иначе причину падения не установить.
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+                Debug.LogError($"[Необработанное исключение] {e.ExceptionObject}");
+
+            TaskScheduler.UnobservedTaskException += (_, e) =>
+            {
+                Debug.LogError($"[Ошибка в async-задаче] {e.Exception}");
+                e.SetObserved();
+            };
         }
 
         /// <summary>
@@ -79,6 +91,26 @@ namespace Musornulsya.Network
         }
 
         private async Task Connect(string code, string playerName, bool createIfMissing)
+        {
+            try
+            {
+                await ConnectInternal(code, playerName, createIfMissing);
+            }
+            catch (Exception e)
+            {
+                // Без этого исключение из async-метода пропадало бесследно,
+                // и игрок навсегда оставался на экране «Создаём комнату…».
+                var message = $"Ошибка подключения:\n{e.Message}";
+
+                LastError = message;
+                Failed?.Invoke(message);
+                IsBusy = false;
+
+                Debug.LogError($"[RoomConnector] {e}");
+            }
+        }
+
+        private async Task ConnectInternal(string code, string playerName, bool createIfMissing)
         {
             if (IsBusy) return;
 
@@ -164,21 +196,43 @@ namespace Musornulsya.Network
             // игровой экран.
             SetLobbyVisible(false);
 
-            // Пока менеджер сцен занят загрузкой, провайдер объектов Fusion
-            // отказывается выдавать префабы и просит повторить позже
-            // (NetworkObjectProviderDefault.DelayIfSceneManagerIsBusy).
-            // Спавн в этот момент возвращал null, и PlayerState не создавался.
-            while (Runner != null && Runner.SceneManager != null && Runner.SceneManager.IsBusy)
-                await Task.Yield();
-
             IsBusy = false;
 
-            if (Runner == null) return;   // успели выйти, пока грузилась сцена
-
-            // Объект комнаты спавнит только создатель — присоединившиеся
-            // получают его по сети, Fusion реплицирует спавн всем в Shared Mode.
+            // Дальше ждём готовности сцены в корутине, а не через Task.Yield:
+            // в WebGL один поток, и цикл ожидания внутри async-метода
+            // блокировал главный цикл — игра зависала на экране лобби.
             if (createIfMissing)
-                Runner.Spawn(_gameRoomPrefab, Vector3.zero, Quaternion.identity, Runner.LocalPlayer);
+                StartCoroutine(SpawnRoomWhenSceneReady());
+        }
+
+        /// <summary>
+        /// Спавнит объект комнаты, когда менеджер сцен освободится. Пока он занят
+        /// загрузкой, провайдер объектов Fusion отказывается выдавать префабы
+        /// (NetworkObjectProviderDefault.DelayIfSceneManagerIsBusy).
+        /// </summary>
+        private System.Collections.IEnumerator SpawnRoomWhenSceneReady()
+        {
+            var timeout = 20f;
+
+            while (timeout > 0f)
+            {
+                if (Runner == null) yield break;   // успели выйти
+
+                if (Runner.SceneManager == null || !Runner.SceneManager.IsBusy)
+                {
+                    Runner.Spawn(_gameRoomPrefab, Vector3.zero, Quaternion.identity,
+                        Runner.LocalPlayer);
+                    yield break;
+                }
+
+                timeout -= Time.deltaTime;
+                yield return null;
+            }
+
+            var message = "Комната не создалась — сцена не загрузилась вовремя.";
+            LastError = message;
+            Failed?.Invoke(message);
+            Debug.LogError($"[RoomConnector] {message}");
         }
 
         /// <summary>Сработало возвращение в лобби — интерфейс пора сбросить.</summary>
