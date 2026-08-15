@@ -96,7 +96,14 @@ namespace Musornulsya.UI
 
             _totalRoundsInput.text = "10";
             _totalRoundsInput.contentType = InputField.ContentType.IntegerNumber;
-            _articleInput.contentType = InputField.ContentType.IntegerNumber;
+
+            // Номер статьи бывает составным (158.1, 291.2), поэтому поле
+            // принимает и точку. IntegerNumber такие набрать не давал.
+            _articleInput.contentType = InputField.ContentType.Custom;
+            _articleInput.lineType = InputField.LineType.SingleLine;
+            _articleInput.characterValidation = InputField.CharacterValidation.None;
+            _articleInput.onValidateInput += ValidateArticleChar;
+
             _partInput.contentType = InputField.ContentType.IntegerNumber;
 
             _hostPanel.SetActive(false);
@@ -345,11 +352,44 @@ namespace Musornulsya.UI
                 : new Color(1f, 1f, 1f, 0.35f);
         }
 
-        /// <summary>Номер статьи обязателен, часть — тоже; оба должны быть числами.</summary>
+        /// <summary>
+        /// Пропускает в поле статьи только цифры и одну точку: номер бывает
+        /// составным (158.1), но «1.2.3» или «.5» смысла не имеют.
+        /// </summary>
+        private static char ValidateArticleChar(string text, int charIndex, char addedChar)
+        {
+            if (char.IsDigit(addedChar)) return addedChar;
+
+            // Точка допустима один раз и не первым символом.
+            if (addedChar == '.' && charIndex > 0 && !text.Contains("."))
+                return addedChar;
+
+            return '\0';
+        }
+
+        /// <summary>
+        /// Ответ засчитывается, если статья и часть заполнены. Номер статьи
+        /// сверяем как строку — составные вроде «291.2» числом не выразить.
+        /// </summary>
         private bool IsAnswerValid()
         {
-            return int.TryParse(_articleInput.text, out var article) && article > 0
-                   && int.TryParse(_partInput.text, out var part) && part > 0;
+            var article = NormalizeArticle(_articleInput.text);
+            if (string.IsNullOrEmpty(article)) return false;
+
+            // Точка не должна висеть в конце: «158.» — незаконченный ввод.
+            if (article.EndsWith(".")) return false;
+
+            return int.TryParse(_partInput.text, out var part) && part > 0;
+        }
+
+        /// <summary>
+        /// Приводит ввод к виду, в котором номера хранятся в базе:
+        /// убирает пробелы и лишние нули, «158,1» превращает в «158.1».
+        /// </summary>
+        private static string NormalizeArticle(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "";
+            return raw.Trim().Replace(',', '.');
         }
 
         private void RefreshRows(bool revealed, bool isHost)
@@ -491,7 +531,8 @@ namespace Musornulsya.UI
             var me = _room?.LocalPlayerState;
             if (me == null || !IsAnswerValid()) return;
 
-            me.RPC_SubmitAnswer(_articleInput.text.Trim(), _partInput.text.Trim());
+            // Нормализуем перед отправкой: сравнение с загаданным идёт по строке.
+            me.RPC_SubmitAnswer(NormalizeArticle(_articleInput.text), _partInput.text.Trim());
 
             _articleInput.text = "";
             _partInput.text = "";

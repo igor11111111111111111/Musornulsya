@@ -572,8 +572,8 @@ namespace Musornulsya.EditorTools
             articleCaption.color = new Color(0.65f, 0.68f, 0.75f);
             SetLayout(articleCaption.gameObject, preferredWidth: 80, flexibleWidth: 0);
 
-            var articleInput = CreateInputField(answerRow.transform, "ArticleInput", "158");
-            SetLayout(articleInput.gameObject, preferredWidth: 160, flexibleWidth: 0);
+            var articleInput = CreateInputField(answerRow.transform, "ArticleInput", "158 или 158.1");
+            SetLayout(articleInput.gameObject, preferredWidth: 190, flexibleWidth: 0);
 
             var partCaption = CreateText(answerRow.transform, "PartCaption", "Часть",
                 18, TextAnchor.MiddleRight);
