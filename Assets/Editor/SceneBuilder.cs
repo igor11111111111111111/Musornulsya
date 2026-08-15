@@ -53,7 +53,7 @@ namespace Musornulsya.EditorTools
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            BuildGameScene();
+            BuildGameScene(); 
             BuildLobbyScene(gameRoomPrefab);
 
             RegisterScenesInBuildSettings();
