@@ -562,7 +562,10 @@ namespace Musornulsya.EditorTools
             arLayout.spacing = 10;
             arLayout.childAlignment = TextAnchor.MiddleLeft;
             arLayout.childForceExpandWidth = false;
-            arLayout.childForceExpandHeight = true;
+
+            // Не растягиваем по высоте: иначе поля ввода вытягивались во всю
+            // высоту панели и выглядели пустыми прямоугольниками.
+            arLayout.childForceExpandHeight = false;
             arLayout.childControlWidth = true;
             arLayout.childControlHeight = true;
             SetLayout(answerRow, preferredHeight: 56);
@@ -570,22 +573,29 @@ namespace Musornulsya.EditorTools
             var articleCaption = CreateText(answerRow.transform, "ArticleCaption", "Статья",
                 18, TextAnchor.MiddleRight);
             articleCaption.color = new Color(0.65f, 0.68f, 0.75f);
-            SetLayout(articleCaption.gameObject, preferredWidth: 80, flexibleWidth: 0);
+            SetLayout(articleCaption.gameObject, preferredWidth: 80, preferredHeight: 52,
+                flexibleWidth: 0);
 
-            var articleInput = CreateInputField(answerRow.transform, "ArticleInput", "158 или 158.1");
-            SetLayout(articleInput.gameObject, preferredWidth: 190, flexibleWidth: 0);
+            // Подсказки нейтральные: конкретные числа выглядели как уже
+            // введённый ответ, и было непонятно, вводил их игрок или нет.
+            var articleInput = CreateInputField(answerRow.transform, "ArticleInput", "номер");
+            SetLayout(articleInput.gameObject, preferredWidth: 190, preferredHeight: 52,
+                flexibleWidth: 0);
 
             var partCaption = CreateText(answerRow.transform, "PartCaption", "Часть",
                 18, TextAnchor.MiddleRight);
             partCaption.color = new Color(0.65f, 0.68f, 0.75f);
-            SetLayout(partCaption.gameObject, preferredWidth: 70, flexibleWidth: 0);
+            SetLayout(partCaption.gameObject, preferredWidth: 70, preferredHeight: 52,
+                flexibleWidth: 0);
 
-            var partInput = CreateInputField(answerRow.transform, "PartInput", "2");
-            SetLayout(partInput.gameObject, preferredWidth: 120, flexibleWidth: 0);
+            var partInput = CreateInputField(answerRow.transform, "PartInput", "часть");
+            SetLayout(partInput.gameObject, preferredWidth: 120, preferredHeight: 52,
+                flexibleWidth: 0);
 
             var submitButton = CreateButton(answerRow.transform, "SubmitButton",
                 "Отправить", AccentColor);
-            SetLayout(submitButton.gameObject, preferredWidth: 180, flexibleWidth: 1);
+            SetLayout(submitButton.gameObject, preferredWidth: 180, preferredHeight: 52,
+                flexibleWidth: 1);
 
             var submitStatus = CreateText(playerPanel.transform, "SubmitStatus",
                 "Ждём, пока ведущий начнёт", 18, TextAnchor.MiddleLeft);
@@ -1141,7 +1151,9 @@ namespace Musornulsya.EditorTools
             textRt.offsetMax = new Vector2(-14, -2);
 
             var ph = CreateText(go.transform, "Placeholder", placeholder, 20, TextAnchor.MiddleLeft);
-            ph.color = new Color(0.45f, 0.48f, 0.55f);
+            // Заметно тусклее вводимого текста: иначе подсказку принимали
+            // за уже введённый ответ.
+            ph.color = new Color(0.38f, 0.4f, 0.46f);
             ph.fontStyle = FontStyle.Italic;
             var phRt = ph.rectTransform;
             phRt.anchorMin = Vector2.zero;
