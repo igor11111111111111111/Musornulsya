@@ -1192,9 +1192,9 @@ namespace Musornulsya.EditorTools
         private static Font _cachedFont;
 
         /// <summary>
-        /// Штатный шрифт uGUI. Лежит в «unity default resources», поэтому берётся
-        /// через Resources.GetBuiltinResource — GetBuiltinExtraResource ищет его
-        /// в другом файле и валит консоль ошибками «Failed to find LegacyRuntime.ttf».
+        /// Шрифт интерфейса. Берём Inter из Assets/Resources/Fonts, а не
+        /// встроенный LegacyRuntime: у встроенного нет кириллических глифов,
+        /// и в WebGL-сборке весь русский текст пропадал.
         /// </summary>
         private static Font DefaultFont
         {
@@ -1202,23 +1202,24 @@ namespace Musornulsya.EditorTools
             {
                 if (_cachedFont != null) return _cachedFont;
 
-                // Порядок важен: в Unity 6 это LegacyRuntime, в старых — Arial.
-                // Сравниваем явно: у Unity-объектов перегружён operator ==,
-                // и ?? обошёл бы эту перегрузку.
-                _cachedFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                if (_cachedFont == null)
-                    _cachedFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                _cachedFont = AssetDatabase.LoadAssetAtPath<Font>(FontPath);
 
                 if (_cachedFont == null)
                 {
-                    Debug.LogWarning(
-                        "[SceneBuilder] Встроенный шрифт не найден — текст будет невидим. " +
-                        "Назначь шрифт в компонентах Text вручную.");
+                    // Запасной вариант, чтобы сборка сцен не падала совсем.
+                    // Кириллицы в нём нет — текст будет пустым.
+                    _cachedFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+                    Debug.LogError(
+                        $"[SceneBuilder] Не найден {FontPath}. " +
+                        "Русский текст в билде не отобразится.");
                 }
 
                 return _cachedFont;
             }
         }
+
+        private const string FontPath = "Assets/Resources/Fonts/Inter-Regular.ttf";
 
         private static void CreateCamera()
         {

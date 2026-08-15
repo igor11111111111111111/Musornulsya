@@ -6,7 +6,7 @@
     <title>Unity Web Player | Musornulsya</title>
   </head>
   <body style="text-align: center; padding: 0; border: 0; margin: 0;">
-    <canvas id="unity-canvas" width=960 height=600 tabindex="-1" style="width: 960px; height: 600px; background: #231F20"></canvas>
+    <canvas id="unity-canvas" width=1280 height=720 tabindex="-1" style="width: 1280px; height: 720px; background: #231F20"></canvas>
     <script src="Build/build1.loader.js"></script>
     <script>
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
@@ -27,9 +27,9 @@
 
       createUnityInstance(document.querySelector("#unity-canvas"), {
         arguments: [],
-        dataUrl: "Build/build1.data.br",
-        frameworkUrl: "Build/build1.framework.js.br",
-        codeUrl: "Build/build1.wasm.br",
+        dataUrl: "Build/build1.data",
+        frameworkUrl: "Build/build1.framework.js",
+        codeUrl: "Build/build1.wasm",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "Musornulsya",

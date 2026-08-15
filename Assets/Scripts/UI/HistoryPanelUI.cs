@@ -34,7 +34,7 @@ namespace Musornulsya.UI
 
         private void Awake()
         {
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = Core.UiFont.Get();
 
             _closeButton.onClick.AddListener(Hide);
             _restartButton.onClick.AddListener(() =>
