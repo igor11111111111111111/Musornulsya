@@ -490,6 +490,8 @@ namespace Musornulsya.EditorTools
             articleContentRt.anchorMin = new Vector2(0, 1);
             articleContentRt.anchorMax = new Vector2(1, 1);
             articleContentRt.pivot = new Vector2(0.5f, 1);
+            articleContentRt.offsetMin = new Vector2(0, articleContentRt.offsetMin.y);
+            articleContentRt.offsetMax = new Vector2(0, articleContentRt.offsetMax.y);
             articleScroll.content = articleContentRt;
 
             var acLayout = articleContent.AddComponent<VerticalLayoutGroup>();
@@ -627,6 +629,8 @@ namespace Musornulsya.EditorTools
             revealedContentRt.anchorMin = new Vector2(0, 1);
             revealedContentRt.anchorMax = new Vector2(1, 1);
             revealedContentRt.pivot = new Vector2(0.5f, 1);
+            revealedContentRt.offsetMin = new Vector2(0, revealedContentRt.offsetMin.y);
+            revealedContentRt.offsetMax = new Vector2(0, revealedContentRt.offsetMax.y);
             revealedScroll.content = revealedContentRt;
 
             var rcLayout = revealedContent.AddComponent<VerticalLayoutGroup>();
@@ -954,6 +958,13 @@ namespace Musornulsya.EditorTools
             contentRt.anchorMin = new Vector2(0, 1);
             contentRt.anchorMax = new Vector2(1, 1);
             contentRt.pivot = new Vector2(0.5f, 1);
+
+            // Обнуляем горизонтальные отступы: без этого RectTransform
+            // сохранял значения от размера при создании (Left/Right = -50),
+            // и содержимое вылезало за viewport — плашки обрезались.
+            contentRt.offsetMin = new Vector2(0, contentRt.offsetMin.y);
+            contentRt.offsetMax = new Vector2(0, contentRt.offsetMax.y);
+
             scrollRect.content = contentRt;
 
             var layout = content.AddComponent<VerticalLayoutGroup>();
