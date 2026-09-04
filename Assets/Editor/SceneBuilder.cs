@@ -340,6 +340,19 @@ namespace Musornulsya.EditorTools
             versionRt.anchoredPosition = new Vector2(16, 16);
             versionRt.sizeDelta = new Vector2(160, 20);
 
+            // Настройки — слева внизу, над строкой версии.
+            var settingsButton = CreateSmallButton(canvas.transform, "SettingsButton",
+                "Настройки", new Color(0.24f, 0.26f, 0.32f));
+
+            var settingsBtnRt = settingsButton.GetComponent<RectTransform>();
+            settingsBtnRt.anchorMin = new Vector2(0, 0);
+            settingsBtnRt.anchorMax = new Vector2(0, 0);
+            settingsBtnRt.pivot = new Vector2(0, 0);
+            settingsBtnRt.anchoredPosition = new Vector2(16, 42);
+            settingsBtnRt.sizeDelta = new Vector2(120, 30);
+
+            BuildSettingsPanel(canvas.transform, settingsButton);
+
             var lobbyGo = new GameObject("LobbyUI");
             var lobby = lobbyGo.AddComponent<LobbyUI>();
             var so = new SerializedObject(lobby);
@@ -407,18 +420,24 @@ namespace Musornulsya.EditorTools
 
             var phaseText = CreateText(header.transform, "PhaseText", "", 17, TextAnchor.MiddleLeft);
             phaseText.color = new Color(0.65f, 0.68f, 0.75f);
-            SetLayout(phaseText.gameObject, preferredWidth: 260, flexibleWidth: 1);
+            // Единственный растяжимый элемент шапки: ужимается первым,
+            // когда кнопкам и таймеру не хватает места.
+            SetLayout(phaseText.gameObject, preferredWidth: 180, flexibleWidth: 1);
 
             var historyButton = CreateButton(header.transform, "HistoryButton", "История",
                 new Color(0.28f, 0.31f, 0.38f));
             SetLayout(historyButton.gameObject, preferredWidth: 120, preferredHeight: 40, flexibleWidth: 0);
+
+            var settingsButton = CreateButton(header.transform, "SettingsButton", "Звук",
+                new Color(0.24f, 0.26f, 0.32f));
+            SetLayout(settingsButton.gameObject, preferredWidth: 90, preferredHeight: 40, flexibleWidth: 0);
 
             var timerText = CreateText(header.transform, "TimerText", "", 26, TextAnchor.MiddleCenter);
             timerText.fontStyle = FontStyle.Bold;
             SetLayout(timerText.gameObject, preferredWidth: 110, flexibleWidth: 0);
 
             var roomCodeText = CreateText(header.transform, "RoomCode", "Код: —", 19, TextAnchor.MiddleRight);
-            SetLayout(roomCodeText.gameObject, preferredWidth: 230, flexibleWidth: 0);
+            SetLayout(roomCodeText.gameObject, preferredWidth: 200, flexibleWidth: 0);
 
             var leaveButton = CreateButton(header.transform, "LeaveButton", "Выйти",
                 new Color(0.35f, 0.24f, 0.26f));
@@ -708,6 +727,7 @@ namespace Musornulsya.EditorTools
             // ---- Оверлеи ----
             var historyPanel = BuildHistoryPanel(canvas.transform);
             var articlePicker = BuildArticlePicker(canvas.transform);
+            BuildSettingsPanel(canvas.transform, settingsButton);
 
             // ---- Связываем GameUI ----
             var gameUiGo = new GameObject("GameUI");
@@ -1158,6 +1178,148 @@ namespace Musornulsya.EditorTools
             template.SetActive(false);
 
             return dropdown;
+        }
+
+        /// <summary>
+        /// Горизонтальный слайдер. Собирается вручную: готовый шаблон живёт
+        /// в редакторных ресурсах uGUI и из кода недоступен.
+        /// </summary>
+        private static Slider CreateSlider(Transform parent, string name)
+        {
+            var go = CreateUIObject(name, parent, out _);
+            var slider = go.AddComponent<Slider>();
+
+            // Дорожка
+            var background = CreateUIObject("Background", go.transform, out var bgRt);
+            bgRt.anchorMin = new Vector2(0, 0.5f);
+            bgRt.anchorMax = new Vector2(1, 0.5f);
+            bgRt.pivot = new Vector2(0.5f, 0.5f);
+            bgRt.offsetMin = new Vector2(0, -4);
+            bgRt.offsetMax = new Vector2(0, 4);
+            background.AddComponent<Image>().color = new Color(0.09f, 0.1f, 0.13f);
+
+            // Заполненная часть
+            var fillArea = CreateUIObject("Fill Area", go.transform, out var fillAreaRt);
+            fillAreaRt.anchorMin = new Vector2(0, 0.5f);
+            fillAreaRt.anchorMax = new Vector2(1, 0.5f);
+            fillAreaRt.pivot = new Vector2(0.5f, 0.5f);
+            fillAreaRt.offsetMin = new Vector2(0, -4);
+            fillAreaRt.offsetMax = new Vector2(-14, 4);
+
+            var fill = CreateUIObject("Fill", fillArea.transform, out var fillRt);
+            fillRt.anchorMin = Vector2.zero;
+            fillRt.anchorMax = new Vector2(1, 1);
+            fillRt.offsetMin = Vector2.zero;
+            fillRt.offsetMax = new Vector2(14, 0);
+            fill.AddComponent<Image>().color = AccentColor;
+
+            // Ручка
+            var handleArea = CreateUIObject("Handle Slide Area", go.transform, out var handleAreaRt);
+            handleAreaRt.anchorMin = Vector2.zero;
+            handleAreaRt.anchorMax = Vector2.one;
+            handleAreaRt.offsetMin = new Vector2(7, 0);
+            handleAreaRt.offsetMax = new Vector2(-7, 0);
+
+            var handle = CreateUIObject("Handle", handleArea.transform, out var handleRt);
+            handleRt.sizeDelta = new Vector2(20, 20);
+            var handleImage = handle.AddComponent<Image>();
+            handleImage.color = new Color(0.93f, 0.94f, 0.96f);
+
+            slider.fillRect = fillRt;
+            slider.handleRect = handleRt;
+            slider.targetGraphic = handleImage;
+            slider.direction = Slider.Direction.LeftToRight;
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+
+            return slider;
+        }
+
+        /// <summary>
+        /// Панель настроек поверх сцены. Возвращает готовый компонент,
+        /// кнопку открытия ему назначает вызывающая сторона.
+        /// </summary>
+        private static SettingsPanelUI BuildSettingsPanel(Transform parent, Button openButton)
+        {
+            var root = CreateUIObject("SettingsPanel", parent, out var rootRt);
+            rootRt.anchorMin = Vector2.zero;
+            rootRt.anchorMax = Vector2.one;
+            rootRt.offsetMin = Vector2.zero;
+            rootRt.offsetMax = Vector2.zero;
+
+            // Затемнение — оно же кнопка закрытия по клику мимо панели.
+            var backdrop = root.AddComponent<Image>();
+            backdrop.color = new Color(0.06f, 0.07f, 0.09f, 0.9f);
+            var backdropButton = root.AddComponent<Button>();
+            backdropButton.targetGraphic = backdrop;
+            backdropButton.transition = Selectable.Transition.None;
+
+            var panel = CreateUIObject("Panel", root.transform, out var panelRt);
+            panelRt.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRt.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRt.pivot = new Vector2(0.5f, 0.5f);
+            panelRt.sizeDelta = new Vector2(460, 260);
+            panel.AddComponent<Image>().color = PanelColor;
+
+            // Своя кнопка-заглушка: без неё клик по самой панели проваливался
+            // на затемнение и закрывал настройки.
+            var blocker = panel.AddComponent<Button>();
+            blocker.transition = Selectable.Transition.None;
+
+            var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
+            panelLayout.padding = new RectOffset(24, 24, 20, 20);
+            panelLayout.spacing = 16;
+            panelLayout.childForceExpandWidth = true;
+            panelLayout.childForceExpandHeight = false;
+            panelLayout.childControlWidth = true;
+            panelLayout.childControlHeight = true;
+
+            var title = CreateText(panel.transform, "Title", "Настройки", 26, TextAnchor.MiddleCenter);
+            title.fontStyle = FontStyle.Bold;
+            SetLayout(title.gameObject, preferredHeight: 38);
+
+            // Строка громкости: подпись, слайдер, проценты.
+            var volumeRow = CreateUIObject("VolumeRow", panel.transform, out _);
+            var volumeLayout = volumeRow.AddComponent<HorizontalLayoutGroup>();
+            volumeLayout.spacing = 12;
+            volumeLayout.childAlignment = TextAnchor.MiddleLeft;
+            volumeLayout.childForceExpandWidth = false;
+            volumeLayout.childForceExpandHeight = false;
+            volumeLayout.childControlWidth = true;
+            volumeLayout.childControlHeight = true;
+            SetLayout(volumeRow, preferredHeight: 44);
+
+            var volumeCaption = CreateText(volumeRow.transform, "Caption", "Звук",
+                19, TextAnchor.MiddleLeft);
+            volumeCaption.color = new Color(0.72f, 0.75f, 0.8f);
+            SetLayout(volumeCaption.gameObject, preferredWidth: 80, preferredHeight: 32,
+                flexibleWidth: 0);
+
+            var volumeSlider = CreateSlider(volumeRow.transform, "VolumeSlider");
+            SetLayout(volumeSlider.gameObject, preferredWidth: 220, preferredHeight: 24,
+                flexibleWidth: 1);
+
+            var volumeValue = CreateText(volumeRow.transform, "Value", "70%",
+                19, TextAnchor.MiddleRight);
+            volumeValue.fontStyle = FontStyle.Bold;
+            SetLayout(volumeValue.gameObject, preferredWidth: 64, preferredHeight: 32,
+                flexibleWidth: 0);
+
+            var closeButton = CreateButton(panel.transform, "CloseButton", "Закрыть",
+                new Color(0.28f, 0.31f, 0.38f));
+            SetLayout(closeButton.gameObject, preferredHeight: 48);
+
+            var ui = root.AddComponent<SettingsPanelUI>();
+            var so = new SerializedObject(ui);
+            so.FindProperty("_root").objectReferenceValue = root;
+            so.FindProperty("_openButton").objectReferenceValue = openButton;
+            so.FindProperty("_closeButton").objectReferenceValue = closeButton;
+            so.FindProperty("_backdropButton").objectReferenceValue = backdropButton;
+            so.FindProperty("_volumeSlider").objectReferenceValue = volumeSlider;
+            so.FindProperty("_volumeValueText").objectReferenceValue = volumeValue;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            return ui;
         }
 
         private static InputField CreateInputField(Transform parent, string name, string placeholder)
