@@ -69,6 +69,10 @@ namespace Musornulsya.UI
         private bool _subscribed;
         private bool _finalShown;
 
+        /// <summary>Источник тиканья и секунда, на которой он в последний раз сработал.</summary>
+        private AudioSource _tickSource;
+        private int _lastTickSecond = -1;
+
         private void Start()
         {
             _rowPrefab = Resources.Load<PlayerRowUI>(RowPrefabPath);
@@ -109,6 +113,12 @@ namespace Musornulsya.UI
             _hostPanel.SetActive(false);
             _playerPanel.SetActive(false);
             _setupPanel.SetActive(false);
+
+            // Источник для тиканья. PlayOneShot не требует настройки клипа,
+            // поэтому сам AudioSource нужен только как «динамик».
+            _tickSource = gameObject.AddComponent<AudioSource>();
+            _tickSource.playOnAwake = false;
+            _tickSource.spatialBlend = 0f;   // 2D-звук, без привязки к сцене
         }
 
         private void BuildDurationDropdown()
@@ -230,13 +240,40 @@ namespace Musornulsya.UI
                 _timerText.color = left <= 10
                     ? new Color(0.95f, 0.45f, 0.4f)
                     : new Color(0.93f, 0.94f, 0.96f);
+
+                PlayTickIfSecondChanged(left);
             }
             else
             {
                 _timerText.text = "";
+                _lastTickSecond = -1;   // следующий раунд начнёт отсчёт заново
             }
 
             _historyButton.gameObject.SetActive(!finished);
+        }
+
+        /// <summary>
+        /// Тикает раз в секунду, пока идёт приём ответов.
+        ///
+        /// Звучит только у тех, кто отвечает: ведущему тиканье мешало бы
+        /// объяснять статью голосом. Последние 10 секунд тон выше и громче —
+        /// так слышно, что время заканчивается, даже не глядя на экран.
+        /// </summary>
+        private void PlayTickIfSecondChanged(int secondsLeft)
+        {
+            if (_tickSource == null) return;
+            if (_room.IsLocalHostPlaying) return;      // ведущий играет молча
+            if (secondsLeft <= 0) return;
+
+            if (secondsLeft == _lastTickSecond) return;
+            _lastTickSecond = secondsLeft;
+
+            var urgent = secondsLeft <= 10;
+            var clip = urgent || secondsLeft % 2 == 0
+                ? TickSound.Tick
+                : TickSound.Tock;
+
+            _tickSource.PlayOneShot(clip, urgent ? 1f : 0.5f);
         }
 
         private void RefreshHost(RoundPhase phase, bool revealed)

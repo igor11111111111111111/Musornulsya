@@ -326,6 +326,20 @@ namespace Musornulsya.EditorTools
                 "Отладка: я игрок", new Color(0.3f, 0.21f, 0.34f));
             SetLayout(debugPlayerButton.gameObject, preferredWidth: 140, flexibleWidth: 0);
 
+            // Версия в левом нижнем углу — чтобы при разборе жалоб было понятно,
+            // какая сборка у игрока. Значение берём из настроек проекта,
+            // иначе строка в коде разошлась бы с реальной версией.
+            var versionText = CreateText(canvas.transform, "VersionText",
+                $"v{Application.version}", 12, TextAnchor.LowerLeft);
+            versionText.color = new Color(0.45f, 0.47f, 0.53f);
+
+            var versionRt = versionText.rectTransform;
+            versionRt.anchorMin = new Vector2(0, 0);
+            versionRt.anchorMax = new Vector2(0, 0);
+            versionRt.pivot = new Vector2(0, 0);
+            versionRt.anchoredPosition = new Vector2(16, 16);
+            versionRt.sizeDelta = new Vector2(160, 20);
+
             var lobbyGo = new GameObject("LobbyUI");
             var lobby = lobbyGo.AddComponent<LobbyUI>();
             var so = new SerializedObject(lobby);
@@ -1229,6 +1243,10 @@ namespace Musornulsya.EditorTools
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = BgColor;
             cam.orthographic = true;
+
+            // Без слушателя не слышно ничего: Unity создаёт его сама только
+            // в стандартной сцене, а наши собираются с нуля.
+            go.AddComponent<AudioListener>();
         }
 
         private static void CreateEventSystem()
