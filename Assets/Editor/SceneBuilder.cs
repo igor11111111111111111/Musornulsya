@@ -349,6 +349,10 @@ namespace Musornulsya.EditorTools
 
             BuildSettingsPanel(canvas.transform, settingsButton);
 
+            // Попап прогресса создаём последним: он должен рисоваться
+            // поверх остальных элементов лобби, включая настройки.
+            BuildConnectProgress(canvas.transform);
+
             var lobbyGo = new GameObject("LobbyUI");
             var lobby = lobbyGo.AddComponent<LobbyUI>();
             var so = new SerializedObject(lobby);
@@ -1289,6 +1293,85 @@ namespace Musornulsya.EditorTools
             handleRt.anchoredPosition = Vector2.zero;
 
             return slider;
+        }
+
+        /// <summary>
+        /// Попап прогресса подключения: этап словами и полоса заполнения.
+        /// Показывается поверх лобби, пока идёт вход в комнату.
+        /// </summary>
+        private static ConnectProgressUI BuildConnectProgress(Transform parent)
+        {
+            var root = CreateUIObject("ConnectProgress", parent, out var rootRt);
+            rootRt.anchorMin = Vector2.zero;
+            rootRt.anchorMax = Vector2.one;
+            rootRt.offsetMin = Vector2.zero;
+            rootRt.offsetMax = Vector2.zero;
+
+            // Затемнение перехватывает клики: во время подключения
+            // нажимать что-либо в лобби не нужно.
+            var backdrop = root.AddComponent<Image>();
+            backdrop.color = new Color(0.06f, 0.07f, 0.09f, 0.92f);
+
+            var panel = CreateUIObject("Panel", root.transform, out var panelRt);
+            panelRt.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRt.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRt.pivot = new Vector2(0.5f, 0.5f);
+            panelRt.sizeDelta = new Vector2(460, 180);
+            AddPanelBackground(panel, PanelColor, 0.9f);
+
+            var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
+            panelLayout.padding = new RectOffset(28, 28, 24, 24);
+            panelLayout.spacing = 18;
+            panelLayout.childForceExpandWidth = true;
+            panelLayout.childForceExpandHeight = false;
+            panelLayout.childControlWidth = true;
+            panelLayout.childControlHeight = true;
+
+            var title = CreateText(panel.transform, "Title", "Подключение", 24,
+                TextAnchor.MiddleCenter);
+            title.fontStyle = FontStyle.Bold;
+            SetLayout(title.gameObject, preferredHeight: 34);
+
+            var stage = CreateText(panel.transform, "Stage", "Готовим комнату…", 17,
+                TextAnchor.MiddleCenter);
+            stage.color = new Color(0.72f, 0.75f, 0.8f);
+            SetLayout(stage.gameObject, preferredHeight: 26);
+
+            // Полоса: подложка и заливка поверх неё.
+            var barBg = CreateUIObject("BarBackground", panel.transform, out _);
+            AddPanelBackground(barBg, new Color(0.09f, 0.1f, 0.13f), 8f);
+            SetLayout(barBg, preferredHeight: 12);
+
+            // Заливку режем маской, а не Image.Type.Filled: тип Filled
+            // не умеет 9-slice, и скруглённый спрайт растягивался целиком —
+            // полоса превращалась в овал.
+            barBg.AddComponent<Mask>().showMaskGraphic = true;
+
+            var barFillGo = CreateUIObject("BarFill", barBg.transform, out var barFillRt);
+            barFillRt.anchorMin = Vector2.zero;
+            barFillRt.anchorMax = new Vector2(1f, 1f);
+            barFillRt.pivot = new Vector2(0f, 0.5f);
+            barFillRt.offsetMin = Vector2.zero;
+            barFillRt.offsetMax = Vector2.zero;
+
+            var barFill = barFillGo.AddComponent<Image>();
+            barFill.sprite = UiSprites.RoundedSoft;
+            barFill.type = Image.Type.Sliced;
+            barFill.pixelsPerUnitMultiplier = 8f;
+            barFill.color = AccentColor;
+
+            // Компонент висит на корне и НЕ выключается вместе с попапом:
+            // иначе он терял бы подписки и не получал события подключения.
+            // Прячется только затемнение и само окно.
+            var ui = root.AddComponent<ConnectProgressUI>();
+            var so = new SerializedObject(ui);
+            so.FindProperty("_backdrop").objectReferenceValue = backdrop;
+            so.FindProperty("_panel").objectReferenceValue = panel;
+            so.FindProperty("_stageText").objectReferenceValue = stage;
+            so.FindProperty("_barFill").objectReferenceValue = barFill;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            return ui;
         }
 
         /// <summary>

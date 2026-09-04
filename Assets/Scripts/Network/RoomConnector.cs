@@ -34,6 +34,18 @@ namespace Musornulsya.Network
         public event Action<string> Failed;
 
         /// <summary>
+        /// Этап подключения: текст для попапа и доля прогресса 0..1.
+        /// Нужен, чтобы игрок видел, на чём именно он ждёт, а не смотрел
+        /// в неподвижную строку «Подключаемся…».
+        /// </summary>
+        public event Action<string, float> Progress;
+
+        /// <summary>Подключение завершилось — попап пора закрыть.</summary>
+        public event Action Connected;
+
+        private void Report(string stage, float progress) => Progress?.Invoke(stage, progress);
+
+        /// <summary>
         /// Текст последней ошибки. Нужен потому, что событие Failed срабатывает
         /// до возврата в лобби — подписчик к этому моменту уничтожен вместе
         /// со старой сценой, и сообщение бы потерялось.
@@ -61,9 +73,55 @@ namespace Musornulsya.Network
 
             TaskScheduler.UnobservedTaskException += (_, e) =>
             {
-                Debug.LogError($"[Ошибка в async-задаче] {e.Exception}");
+                // Помечаем обработанным в любом случае: без этого сборщик
+                // мусора роняет приложение необработанным исключением.
                 e.SetObserved();
+
+                if (IsHarmlessSocketNoise(e.Exception)) return;
+
+                Debug.LogError($"[Ошибка в async-задаче] {e.Exception}");
             };
+        }
+
+        /// <summary>
+        /// Отсеивает шум от закрытия веб-сокета.
+        ///
+        /// Photon рвёт соединение своим способом, и в фоне остаётся задача,
+        /// которая падает с «WebSocket is in an invalid state (Aborted)».
+        /// На работу это не влияет и нашим кодом не лечится — в консоли
+        /// такая запись только маскирует настоящие ошибки.
+        /// </summary>
+        private static bool IsHarmlessSocketNoise(Exception exception)
+        {
+            if (exception == null) return false;
+
+            foreach (var inner in Flatten(exception))
+            {
+                if (inner is System.Net.WebSockets.WebSocketException) return true;
+                if (inner is ObjectDisposedException) return true;
+                if (inner is OperationCanceledException) return true;
+            }
+
+            return false;
+        }
+
+        private static System.Collections.Generic.IEnumerable<Exception> Flatten(Exception exception)
+        {
+            if (exception is AggregateException aggregate)
+            {
+                foreach (var inner in aggregate.Flatten().InnerExceptions)
+                {
+                    yield return inner;
+
+                    for (var e = inner.InnerException; e != null; e = e.InnerException)
+                        yield return e;
+                }
+
+                yield break;
+            }
+
+            for (var e = exception; e != null; e = e.InnerException)
+                yield return e;
         }
 
         /// <summary>
@@ -124,6 +182,8 @@ namespace Musornulsya.Network
             LocalPlayerIdentity.PlayerName = playerName;
             RoomCode = code;
 
+            Report(createIfMissing ? "Готовим комнату…" : "Ищем комнату…", 0.1f);
+
             var runnerObject = new GameObject("NetworkRunner");
             DontDestroyOnLoad(runnerObject);
             Runner = runnerObject.AddComponent<NetworkRunner>();
@@ -146,6 +206,8 @@ namespace Musornulsya.Network
             // а объекты комнаты не доезжают. Так же сделано в штатном меню Fusion.
             var sceneInfo = new NetworkSceneInfo();
             sceneInfo.AddSceneRef(SceneRef.FromIndex(GameSceneBuildIndex), LoadSceneMode.Additive);
+
+            Report("Соединяемся с Photon…", 0.3f);
 
             var result = await Runner.StartGame(new StartGameArgs
             {
@@ -191,6 +253,8 @@ namespace Musornulsya.Network
                 return;
             }
 
+            Report("Загружаем игровой экран…", 0.7f);
+
             // Лобби загружено additive-режимом рядом с игрой, поэтому его
             // интерфейс надо спрятать вручную, иначе он просвечивал бы сквозь
             // игровой экран.
@@ -202,7 +266,16 @@ namespace Musornulsya.Network
             // в WebGL один поток, и цикл ожидания внутри async-метода
             // блокировал главный цикл — игра зависала на экране лобби.
             if (createIfMissing)
+            {
                 StartCoroutine(SpawnRoomWhenSceneReady());
+            }
+            else
+            {
+                // Присоединившийся комнату не создаёт: объект приедет по сети,
+                // и ждать здесь нечего.
+                Report("Готово", 1f);
+                Connected?.Invoke();
+            }
         }
 
         /// <summary>
@@ -220,8 +293,13 @@ namespace Musornulsya.Network
 
                 if (Runner.SceneManager == null || !Runner.SceneManager.IsBusy)
                 {
+                    Report("Создаём комнату…", 0.9f);
+
                     Runner.Spawn(_gameRoomPrefab, Vector3.zero, Quaternion.identity,
                         Runner.LocalPlayer);
+
+                    Report("Готово", 1f);
+                    Connected?.Invoke();
                     yield break;
                 }
 
@@ -277,8 +355,22 @@ namespace Musornulsya.Network
                 // Прячем только интерфейс. Камера и EventSystem из лобби
                 // обслуживают и игровую сцену — она грузится поверх и своих
                 // не имеет, иначе получались бы дубликаты.
-                if (root.GetComponent<Canvas>() != null)
-                    root.SetActive(visible);
+                if (root.GetComponent<Canvas>() == null) continue;
+
+                // Канвас оставляем включённым, а гасим только его содержимое.
+                //
+                // Два исключения. Попап подключения: выключенный вместе с
+                // канвасом, он терял Update, очередь этапов замирала, и
+                // «Создаём комнату» с «Готово» всплывали уже при выходе.
+                // Панель настроек: она прячет себя сама, и включение её
+                // объекта показывало настройки при возврате в лобби.
+                foreach (Transform child in root.transform)
+                {
+                    if (child.GetComponent<UI.ConnectProgressUI>() != null) continue;
+                    if (child.GetComponent<UI.SettingsPanelUI>() != null) continue;
+
+                    child.gameObject.SetActive(visible);
+                }
             }
         }
 

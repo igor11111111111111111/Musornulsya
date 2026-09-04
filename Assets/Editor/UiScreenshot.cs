@@ -46,6 +46,28 @@ namespace Musornulsya.EditorTools
             SetPanel(settings, true);
             Shot(IOPath.Combine(outDir, "2_lobby_settings.png"));
             SetPanel(settings, false);
+
+            // Попап подключения: показываем его части напрямую — компонент
+            // прячет не сам объект, а затемнение и окно.
+            var progress = Object.FindFirstObjectByType<ConnectProgressUI>(
+                FindObjectsInactive.Include);
+
+            if (progress != null)
+            {
+                var so = new SerializedObject(progress);
+
+                if (so.FindProperty("_backdrop").objectReferenceValue is Image backdrop)
+                    backdrop.enabled = true;
+
+                if (so.FindProperty("_panel").objectReferenceValue is GameObject panel)
+                    panel.SetActive(true);
+
+                Shot(IOPath.Combine(outDir, "9_connect_progress.png"));
+            }
+            else
+            {
+                Debug.LogError("[UiScreenshot] ConnectProgressUI не найден в лобби.");
+            }
         }
 
         private static void CaptureGame(string outDir)
