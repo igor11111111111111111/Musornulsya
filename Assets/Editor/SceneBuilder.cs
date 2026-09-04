@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using Fusion;
+using Musornulsya.Core;
 using Musornulsya.Data;
 using Musornulsya.Network;
 using Musornulsya.UI;
@@ -156,8 +157,7 @@ namespace Musornulsya.EditorTools
             var root = CreateUIObject("PlayerRow", null, out var rt);
             rt.sizeDelta = new Vector2(0, 52);
 
-            var bg = root.AddComponent<Image>();
-            bg.color = PanelColor;
+            AddPanelBackground(root, PanelColor, 2f);
 
             var layout = root.AddComponent<HorizontalLayoutGroup>();
             layout.padding = new RectOffset(14, 14, 6, 6);
@@ -249,7 +249,7 @@ namespace Musornulsya.EditorTools
             panelRt.anchorMin = new Vector2(0.5f, 0.5f);
             panelRt.anchorMax = new Vector2(0.5f, 0.5f);
             panelRt.pivot = new Vector2(0.5f, 0.5f);
-            panelRt.sizeDelta = new Vector2(520, 500);
+            panelRt.sizeDelta = new Vector2(520, 560);   // +кнопка настроек
             panelRt.anchoredPosition = Vector2.zero;
 
             var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
@@ -261,9 +261,26 @@ namespace Musornulsya.EditorTools
             panelLayout.childControlHeight = true;
             panelLayout.childAlignment = TextAnchor.UpperCenter;
 
-            var title = CreateText(panel.transform, "Title", "МУСОРНУЛСЯ", 44, TextAnchor.MiddleCenter);
+            // Заголовок и версия одной строкой: версия приписана справа
+            // и выровнена по нижнему краю, как приписка к названию.
+            var titleRow = CreateUIObject("TitleRow", panel.transform, out _);
+            var titleLayout = titleRow.AddComponent<HorizontalLayoutGroup>();
+            titleLayout.spacing = 8;
+            titleLayout.childAlignment = TextAnchor.LowerCenter;
+            titleLayout.childForceExpandWidth = false;
+            titleLayout.childForceExpandHeight = false;
+            titleLayout.childControlWidth = true;
+            titleLayout.childControlHeight = true;
+            SetLayout(titleRow, preferredHeight: 64);
+
+            var title = CreateText(titleRow.transform, "Title", "МУСОРНУЛСЯ", 44, TextAnchor.MiddleCenter);
             title.fontStyle = FontStyle.Bold;
-            SetLayout(title.gameObject, preferredHeight: 64);
+            SetLayout(title.gameObject, preferredWidth: 330, preferredHeight: 60, flexibleWidth: 0);
+
+            var versionText = CreateText(titleRow.transform, "VersionText",
+                $"v{Application.version}", 14, TextAnchor.LowerLeft);
+            versionText.color = new Color(0.45f, 0.47f, 0.53f);
+            SetLayout(versionText.gameObject, preferredWidth: 46, preferredHeight: 26, flexibleWidth: 0);
 
             var subtitle = CreateText(panel.transform, "Subtitle",
                 "Ведущий объясняет статью голосом в Discord,\nостальные пишут номер и часть",
@@ -298,6 +315,10 @@ namespace Musornulsya.EditorTools
                 "Присоединиться  (ты игрок)", new Color(0.28f, 0.31f, 0.38f));
             SetLayout(joinButton.gameObject, preferredHeight: 56);
 
+            var settingsButton = CreateButton(panel.transform, "SettingsButton",
+                "Настройки", new Color(0.24f, 0.26f, 0.32f));
+            SetLayout(settingsButton.gameObject, preferredHeight: 46);
+
             var status = CreateText(panel.transform, "Status", "", 17, TextAnchor.MiddleCenter);
             status.color = new Color(0.95f, 0.6f, 0.55f);
             SetLayout(status.gameObject, preferredHeight: 50);
@@ -325,31 +346,6 @@ namespace Musornulsya.EditorTools
             var debugPlayerButton = CreateSmallButton(debugRow.transform, "DebugPlayerButton",
                 "Отладка: я игрок", new Color(0.3f, 0.21f, 0.34f));
             SetLayout(debugPlayerButton.gameObject, preferredWidth: 140, flexibleWidth: 0);
-
-            // Версия в левом нижнем углу — чтобы при разборе жалоб было понятно,
-            // какая сборка у игрока. Значение берём из настроек проекта,
-            // иначе строка в коде разошлась бы с реальной версией.
-            var versionText = CreateText(canvas.transform, "VersionText",
-                $"v{Application.version}", 12, TextAnchor.LowerLeft);
-            versionText.color = new Color(0.45f, 0.47f, 0.53f);
-
-            var versionRt = versionText.rectTransform;
-            versionRt.anchorMin = new Vector2(0, 0);
-            versionRt.anchorMax = new Vector2(0, 0);
-            versionRt.pivot = new Vector2(0, 0);
-            versionRt.anchoredPosition = new Vector2(16, 16);
-            versionRt.sizeDelta = new Vector2(160, 20);
-
-            // Настройки — слева внизу, над строкой версии.
-            var settingsButton = CreateSmallButton(canvas.transform, "SettingsButton",
-                "Настройки", new Color(0.24f, 0.26f, 0.32f));
-
-            var settingsBtnRt = settingsButton.GetComponent<RectTransform>();
-            settingsBtnRt.anchorMin = new Vector2(0, 0);
-            settingsBtnRt.anchorMax = new Vector2(0, 0);
-            settingsBtnRt.pivot = new Vector2(0, 0);
-            settingsBtnRt.anchoredPosition = new Vector2(16, 42);
-            settingsBtnRt.sizeDelta = new Vector2(120, 30);
 
             BuildSettingsPanel(canvas.transform, settingsButton);
 
@@ -451,7 +447,7 @@ namespace Musornulsya.EditorTools
             setupRt.sizeDelta = new Vector2(-40, 92);
             setupRt.anchoredPosition = new Vector2(0, -78);
 
-            setupPanel.AddComponent<Image>().color = PanelColor;
+            AddPanelBackground(setupPanel, PanelColor);
 
             var setupLayout = setupPanel.AddComponent<HorizontalLayoutGroup>();
             setupLayout.padding = new RectOffset(18, 18, 16, 16);
@@ -481,7 +477,7 @@ namespace Musornulsya.EditorTools
             hostRt.sizeDelta = new Vector2(-40, 246);
             hostRt.anchoredPosition = new Vector2(0, -78);
 
-            hostPanel.AddComponent<Image>().color = PanelColor;
+            AddPanelBackground(hostPanel, PanelColor);
 
             var hostLayout = hostPanel.AddComponent<VerticalLayoutGroup>();
             hostLayout.padding = new RectOffset(18, 18, 14, 14);
@@ -500,7 +496,7 @@ namespace Musornulsya.EditorTools
             // перечень признаков занимает больше тысячи символов (ст. 105 ч. 2),
             // и в фиксированный блок он не помещался.
             var articleTextBg = CreateUIObject("ArticleTextBg", hostPanel.transform, out _);
-            articleTextBg.AddComponent<Image>().color = new Color(0.09f, 0.1f, 0.13f);
+            AddPanelBackground(articleTextBg, new Color(0.09f, 0.1f, 0.13f), 1.6f);
             SetLayout(articleTextBg, preferredHeight: 112);
 
             var articleScroll = articleTextBg.AddComponent<ScrollRect>();
@@ -582,7 +578,7 @@ namespace Musornulsya.EditorTools
             ppRt.sizeDelta = new Vector2(-40, 250);
             ppRt.anchoredPosition = new Vector2(0, -78);
 
-            playerPanel.AddComponent<Image>().color = PanelColor;
+            AddPanelBackground(playerPanel, PanelColor);
 
             var ppLayout = playerPanel.AddComponent<VerticalLayoutGroup>();
             ppLayout.padding = new RectOffset(18, 18, 14, 14);
@@ -691,7 +687,7 @@ namespace Musornulsya.EditorTools
             scrollRt.offsetMin = new Vector2(20, 20);
             scrollRt.offsetMax = new Vector2(-20, -336);
 
-            scrollGo.AddComponent<Image>().color = new Color(0.13f, 0.14f, 0.18f);
+            AddPanelBackground(scrollGo, new Color(0.13f, 0.14f, 0.18f));
 
             var scrollRect = scrollGo.AddComponent<ScrollRect>();
             scrollRect.horizontal = false;
@@ -789,7 +785,7 @@ namespace Musornulsya.EditorTools
             panelRt.anchorMax = new Vector2(0.5f, 0.5f);
             panelRt.pivot = new Vector2(0.5f, 0.5f);
             panelRt.sizeDelta = new Vector2(1000, 600);
-            panel.AddComponent<Image>().color = PanelColor;
+            AddPanelBackground(panel, PanelColor, 0.9f);
 
             var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
             panelLayout.padding = new RectOffset(24, 24, 20, 20);
@@ -810,7 +806,7 @@ namespace Musornulsya.EditorTools
 
             // Сетка результатов
             var gridScroll = CreateUIObject("GridScroll", panel.transform, out _);
-            gridScroll.AddComponent<Image>().color = new Color(0.13f, 0.14f, 0.18f);
+            AddPanelBackground(gridScroll, new Color(0.13f, 0.14f, 0.18f));
             SetLayout(gridScroll, preferredHeight: 420);
 
             var gridRect = gridScroll.AddComponent<ScrollRect>();
@@ -902,7 +898,7 @@ namespace Musornulsya.EditorTools
 
             // Фон под панелью: без него содержимое лежало прямо на затемнении
             // и выглядело прижатым к краям экрана.
-            panel.AddComponent<Image>().color = PanelColor;
+            AddPanelBackground(panel, PanelColor, 0.9f);
 
             var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
             panelLayout.padding = new RectOffset(24, 24, 20, 20);
@@ -968,7 +964,7 @@ namespace Musornulsya.EditorTools
         private static RectTransform BuildScrollColumn(Transform parent, string name, float width)
         {
             var scrollGo = CreateUIObject(name, parent, out _);
-            scrollGo.AddComponent<Image>().color = new Color(0.13f, 0.14f, 0.18f);
+            AddPanelBackground(scrollGo, new Color(0.13f, 0.14f, 0.18f));
 
             if (width > 0)
                 SetLayout(scrollGo, preferredWidth: width, flexibleWidth: 0);
@@ -1069,21 +1065,48 @@ namespace Musornulsya.EditorTools
             return text;
         }
 
+        /// <summary>
+        /// Скруглённая подложка. Мягкий градиент: панели не должны спорить
+        /// с кнопками, у которых он заметный.
+        /// </summary>
+        private static Image AddPanelBackground(GameObject go, Color color, float radiusScale = 1.2f)
+        {
+            var image = go.AddComponent<Image>();
+            image.sprite = UiSprites.RoundedSoft;
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = radiusScale;
+            image.color = color;
+            return image;
+        }
+
         private static Button CreateButton(Transform parent, string name, string label, Color color)
         {
             var go = CreateUIObject(name, parent, out _);
             var image = go.AddComponent<Image>();
+
+            // Скруглённый спрайт с градиентом. Яркость пикселей умножается
+            // на цвет, поэтому одна текстура обслуживает все кнопки.
+            image.sprite = UiSprites.Rounded;
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = 1.6f;   // радиус ~10 экранных пикселей
             image.color = color;
 
             var button = go.AddComponent<Button>();
             button.targetGraphic = image;
 
+            // Наведение подсвечивает, нажатие притапливает — без этого
+            // кнопки выглядели неживыми.
+            var colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1.12f, 1.12f, 1.12f);
+            colors.pressedColor = new Color(0.86f, 0.86f, 0.86f);
+            colors.selectedColor = Color.white;
+
             // Неактивная кнопка гасится сильнее, чем по умолчанию: штатный
             // disabledColor почти не отличался от обычного, и было непонятно,
             // что кнопка не работает.
-            var colors = button.colors;
-            colors.disabledColor = new Color(0.35f, 0.35f, 0.38f, 0.5f);
-            colors.fadeDuration = 0.05f;
+            colors.disabledColor = new Color(0.42f, 0.42f, 0.45f, 0.6f);
+            colors.fadeDuration = 0.08f;
             button.colors = colors;
 
             var text = CreateText(go.transform, "Label", label, 19, TextAnchor.MiddleCenter);
@@ -1184,46 +1207,71 @@ namespace Musornulsya.EditorTools
         /// Горизонтальный слайдер. Собирается вручную: готовый шаблон живёт
         /// в редакторных ресурсах uGUI и из кода недоступен.
         /// </summary>
+        /// <summary>
+        /// Горизонтальный слайдер. Собирается вручную: готовый шаблон живёт
+        /// в редакторных ресурсах uGUI и из кода недоступен.
+        ///
+        /// Высота дорожки и ручки задана в пикселях от центра, а не растяжкой
+        /// по родителю: LayoutElement тянет сам слайдер, и растянутая ручка
+        /// превращалась из круга в овал.
+        /// </summary>
         private static Slider CreateSlider(Transform parent, string name)
         {
+            const float trackHalf = 4f;    // половина толщины дорожки
+            const float handleSize = 20f;
+
             var go = CreateUIObject(name, parent, out _);
             var slider = go.AddComponent<Slider>();
 
             // Дорожка
             var background = CreateUIObject("Background", go.transform, out var bgRt);
-            bgRt.anchorMin = new Vector2(0, 0.5f);
-            bgRt.anchorMax = new Vector2(1, 0.5f);
+            bgRt.anchorMin = new Vector2(0f, 0.5f);
+            bgRt.anchorMax = new Vector2(1f, 0.5f);
             bgRt.pivot = new Vector2(0.5f, 0.5f);
-            bgRt.offsetMin = new Vector2(0, -4);
-            bgRt.offsetMax = new Vector2(0, 4);
-            background.AddComponent<Image>().color = new Color(0.09f, 0.1f, 0.13f);
+            bgRt.offsetMin = new Vector2(0f, -trackHalf);
+            bgRt.offsetMax = new Vector2(0f, trackHalf);
 
-            // Заполненная часть
+            var bgImage = background.AddComponent<Image>();
+            bgImage.sprite = UiSprites.RoundedSoft;
+            bgImage.type = Image.Type.Sliced;
+            bgImage.pixelsPerUnitMultiplier = 4f;   // дорожка тонкая — радиус мельче
+            bgImage.color = new Color(0.09f, 0.1f, 0.13f);
+
+            // Заполненная часть. Область сужена на радиус ручки с каждой
+            // стороны, чтобы заливка не выезжала за круглые концы дорожки.
             var fillArea = CreateUIObject("Fill Area", go.transform, out var fillAreaRt);
-            fillAreaRt.anchorMin = new Vector2(0, 0.5f);
-            fillAreaRt.anchorMax = new Vector2(1, 0.5f);
+            fillAreaRt.anchorMin = new Vector2(0f, 0.5f);
+            fillAreaRt.anchorMax = new Vector2(1f, 0.5f);
             fillAreaRt.pivot = new Vector2(0.5f, 0.5f);
-            fillAreaRt.offsetMin = new Vector2(0, -4);
-            fillAreaRt.offsetMax = new Vector2(-14, 4);
+            fillAreaRt.offsetMin = new Vector2(handleSize * 0.5f, -trackHalf);
+            fillAreaRt.offsetMax = new Vector2(-handleSize * 0.5f, trackHalf);
 
             var fill = CreateUIObject("Fill", fillArea.transform, out var fillRt);
             fillRt.anchorMin = Vector2.zero;
-            fillRt.anchorMax = new Vector2(1, 1);
+            fillRt.anchorMax = Vector2.one;
             fillRt.offsetMin = Vector2.zero;
-            fillRt.offsetMax = new Vector2(14, 0);
-            fill.AddComponent<Image>().color = AccentColor;
+            fillRt.offsetMax = Vector2.zero;
 
-            // Ручка
+            var fillImage = fill.AddComponent<Image>();
+            fillImage.sprite = UiSprites.RoundedSoft;
+            fillImage.type = Image.Type.Sliced;
+            fillImage.pixelsPerUnitMultiplier = 4f;
+            fillImage.color = AccentColor;
+
+            // Область скольжения ручки: растянута по ширине, по высоте
+            // прижата к центру ровно под размер ручки.
             var handleArea = CreateUIObject("Handle Slide Area", go.transform, out var handleAreaRt);
-            handleAreaRt.anchorMin = Vector2.zero;
-            handleAreaRt.anchorMax = Vector2.one;
-            handleAreaRt.offsetMin = new Vector2(7, 0);
-            handleAreaRt.offsetMax = new Vector2(-7, 0);
+            handleAreaRt.anchorMin = new Vector2(0f, 0.5f);
+            handleAreaRt.anchorMax = new Vector2(1f, 0.5f);
+            handleAreaRt.pivot = new Vector2(0.5f, 0.5f);
+            handleAreaRt.offsetMin = new Vector2(handleSize * 0.5f, -handleSize * 0.5f);
+            handleAreaRt.offsetMax = new Vector2(-handleSize * 0.5f, handleSize * 0.5f);
 
             var handle = CreateUIObject("Handle", handleArea.transform, out var handleRt);
-            handleRt.sizeDelta = new Vector2(20, 20);
+
             var handleImage = handle.AddComponent<Image>();
-            handleImage.color = new Color(0.93f, 0.94f, 0.96f);
+            handleImage.sprite = UiSprites.Circle;
+            handleImage.color = new Color(0.95f, 0.96f, 0.98f);
 
             slider.fillRect = fillRt;
             slider.handleRect = handleRt;
@@ -1231,6 +1279,14 @@ namespace Musornulsya.EditorTools
             slider.direction = Slider.Direction.LeftToRight;
             slider.minValue = 0f;
             slider.maxValue = 1f;
+
+            // Геометрию ручки правим ПОСЛЕ привязки: назначение handleRect
+            // перестраивает её якоря, и заданные раньше значения терялись.
+            handleRt.anchorMin = new Vector2(0f, 0f);
+            handleRt.anchorMax = new Vector2(0f, 1f);
+            handleRt.pivot = new Vector2(0.5f, 0.5f);
+            handleRt.sizeDelta = new Vector2(handleSize, 0f);
+            handleRt.anchoredPosition = Vector2.zero;
 
             return slider;
         }
@@ -1259,7 +1315,7 @@ namespace Musornulsya.EditorTools
             panelRt.anchorMax = new Vector2(0.5f, 0.5f);
             panelRt.pivot = new Vector2(0.5f, 0.5f);
             panelRt.sizeDelta = new Vector2(460, 260);
-            panel.AddComponent<Image>().color = PanelColor;
+            AddPanelBackground(panel, PanelColor, 0.9f);
 
             // Своя кнопка-заглушка: без неё клик по самой панели проваливался
             // на затемнение и закрывал настройки.
@@ -1326,6 +1382,12 @@ namespace Musornulsya.EditorTools
         {
             var go = CreateUIObject(name, parent, out _);
             var image = go.AddComponent<Image>();
+
+            // Скругление то же, что у кнопок, но градиент почти плоский:
+            // поле ввода не должно спорить с кнопкой за внимание.
+            image.sprite = UiSprites.RoundedSoft;
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = 1.6f;
             image.color = new Color(0.09f, 0.1f, 0.13f);
 
             var input = go.AddComponent<InputField>();

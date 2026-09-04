@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Musornulsya.Core;
 using Musornulsya.Data;
 using UnityEngine;
 using UnityEngine.UI;
@@ -134,6 +135,9 @@ namespace Musornulsya.UI
             go.transform.SetParent(parent, false);
 
             var image = go.AddComponent<Image>();
+            image.sprite = UiSprites.RoundedSoft;
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = 2f;
             image.color = used
                 ? new Color(0.14f, 0.15f, 0.18f)
                 : new Color(0.18f, 0.19f, 0.24f);
@@ -141,6 +145,14 @@ namespace Musornulsya.UI
             var button = go.AddComponent<Button>();
             button.targetGraphic = image;
             button.onClick.AddListener(onClick);
+
+            // Подсветка при наведении: в длинном списке помогает не терять
+            // строку, на которую наведён курсор.
+            var colors = button.colors;
+            colors.highlightedColor = new Color(1.25f, 1.25f, 1.25f);
+            colors.pressedColor = new Color(0.85f, 0.85f, 0.85f);
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
 
             var le = go.AddComponent<LayoutElement>();
             le.preferredHeight = 56;
@@ -158,7 +170,11 @@ namespace Musornulsya.UI
             // Плашка с номером
             var badgeGo = new GameObject("Badge", typeof(RectTransform));
             badgeGo.transform.SetParent(go.transform, false);
-            badgeGo.AddComponent<Image>().color = used
+            var badgeImage = badgeGo.AddComponent<Image>();
+            badgeImage.sprite = UiSprites.Rounded;
+            badgeImage.type = Image.Type.Sliced;
+            badgeImage.pixelsPerUnitMultiplier = 3f;   // плашка мелкая, радиус меньше
+            badgeImage.color = used
                 ? new Color(0.24f, 0.25f, 0.3f)
                 : new Color(0.36f, 0.55f, 0.92f);
 
