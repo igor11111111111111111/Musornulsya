@@ -249,7 +249,7 @@ namespace Musornulsya.EditorTools
             panelRt.anchorMin = new Vector2(0.5f, 0.5f);
             panelRt.anchorMax = new Vector2(0.5f, 0.5f);
             panelRt.pivot = new Vector2(0.5f, 0.5f);
-            panelRt.sizeDelta = new Vector2(520, 560);   // +кнопка настроек
+            panelRt.sizeDelta = new Vector2(520, 554);   // +строка настроек
             panelRt.anchoredPosition = Vector2.zero;
 
             var panelLayout = panel.AddComponent<VerticalLayoutGroup>();
@@ -315,9 +315,22 @@ namespace Musornulsya.EditorTools
                 "Присоединиться  (ты игрок)", new Color(0.28f, 0.31f, 0.38f));
             SetLayout(joinButton.gameObject, preferredHeight: 56);
 
-            var settingsButton = CreateButton(panel.transform, "SettingsButton",
+            // Кнопку кладём в свою строку: вертикальный layout панели
+            // растягивает детей на всю ширину, а настройки — второстепенное
+            // действие и не должны выглядеть наравне с входом в игру.
+            var settingsRow = CreateUIObject("SettingsRow", panel.transform, out _);
+            var settingsLayout = settingsRow.AddComponent<HorizontalLayoutGroup>();
+            settingsLayout.childAlignment = TextAnchor.MiddleCenter;
+            settingsLayout.childForceExpandWidth = false;
+            settingsLayout.childForceExpandHeight = false;
+            settingsLayout.childControlWidth = true;
+            settingsLayout.childControlHeight = true;
+            SetLayout(settingsRow, preferredHeight: 40);
+
+            var settingsButton = CreateButton(settingsRow.transform, "SettingsButton",
                 "Настройки", new Color(0.24f, 0.26f, 0.32f));
-            SetLayout(settingsButton.gameObject, preferredHeight: 46);
+            SetLayout(settingsButton.gameObject, preferredWidth: 160, preferredHeight: 38,
+                flexibleWidth: 0);
 
             var status = CreateText(panel.transform, "Status", "", 17, TextAnchor.MiddleCenter);
             status.color = new Color(0.95f, 0.6f, 0.55f);

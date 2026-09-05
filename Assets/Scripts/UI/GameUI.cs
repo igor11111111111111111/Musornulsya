@@ -196,6 +196,7 @@ namespace Musornulsya.UI
             _playerPanel.SetActive(!isHost && !finished);
 
             RefreshHeader(phase, finished);
+            PlayResultSoundOnce(revealed);
 
             if (isHost) RefreshHost(phase, revealed);
             else RefreshPlayer(phase, revealed);
@@ -259,10 +260,65 @@ namespace Musornulsya.UI
         /// объяснять статью голосом. Последние 10 секунд тон выше и громче —
         /// так слышно, что время заканчивается, даже не глядя на экран.
         /// </summary>
+        /// <summary>
+        /// Звук итога раунда — один раз при раскрытии ответов.
+        ///
+        /// Каждый слышит свой результат: игрок — по собственным баллам,
+        /// ведущий — по тому, угадал ли хоть кто-то, потому что своего
+        /// ответа у него нет.
+        /// </summary>
+        private void PlayResultSoundOnce(bool revealed)
+        {
+            if (!revealed)
+            {
+                _resultPlayedForRound = -1;   // следующий раунд прозвучит снова
+                return;
+            }
+
+            if (_tickSource == null) return;
+            if (_resultPlayedForRound == _room.RoundNumber) return;
+
+            _resultPlayedForRound = _room.RoundNumber;
+
+            var success = _room.IsLocalHostPlaying
+                ? AnyoneScored()
+                : LocalPlayerScored();
+
+            _tickSource.PlayOneShot(success ? TickSound.Correct : TickSound.Wrong, 0.9f);
+        }
+
+        /// <summary>Набрал ли локальный игрок баллы в этом раунде.</summary>
+        private bool LocalPlayerScored()
+        {
+            var me = _room.LocalPlayerState;
+            if (me == null) return false;
+
+            var index = _room.RoundNumber - 1;
+            if (index < 0 || index >= me.RoundScores.Length) return false;
+
+            return me.RoundScores[index] > 0;
+        }
+
+        /// <summary>Угадал ли хоть кто-то — сигнал для ведущего.</summary>
+        private bool AnyoneScored()
+        {
+            var index = _room.RoundNumber - 1;
+
+            foreach (var p in CollectPlayers())
+            {
+                if (index < 0 || index >= p.RoundScores.Length) continue;
+                if (p.RoundScores[index] > 0) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Раунд, за который звук итога уже прозвучал.</summary>
+        private int _resultPlayedForRound = -1;
+
         private void PlayTickIfSecondChanged(int secondsLeft)
         {
             if (_tickSource == null) return;
-            if (_room.IsLocalHostPlaying) return;      // ведущий играет молча
             if (secondsLeft <= 0) return;
 
             if (secondsLeft == _lastTickSecond) return;
@@ -273,7 +329,12 @@ namespace Musornulsya.UI
                 ? TickSound.Tick
                 : TickSound.Tock;
 
-            _tickSource.PlayOneShot(clip, urgent ? 1f : 0.5f);
+            // Ведущему тоже нужен таймер, но тише: он в это время объясняет
+            // статью голосом, и громкий тик мешал бы говорить.
+            var volume = urgent ? 1f : 0.5f;
+            if (_room.IsLocalHostPlaying) volume *= 0.45f;
+
+            _tickSource.PlayOneShot(clip, volume);
         }
 
         private void RefreshHost(RoundPhase phase, bool revealed)
